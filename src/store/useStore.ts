@@ -91,6 +91,7 @@ export interface Order {
   type: 'sale' | 'payment' | 'previous_debt';
   date: string;
   payment_method: 'cash' | 'visa' | 'wallet' | 'instapay';
+  refund_method?: string;
   customer?: Customer;
   cashier_name?: string;
   isOffline?: boolean;
@@ -333,7 +334,7 @@ interface CashierStore {
     paymentMethod?: string,
     discount?: number
   ) => Promise<string | null | void>;
-  processReturn: (orderId: string, returns: { productId: string, returnQty: number, refundAmount: number, debtDeduction?: number }[]) => Promise<boolean>;
+  processReturn: (orderId: string, returns: { productId: string, returnQty: number, refundAmount: number, debtDeduction?: number }[], refundMethod?: string) => Promise<boolean>;
   deleteOrder: (orderId: string, reason?: string) => Promise<boolean>;
   editOrder: (orderId: string, updatedData: Partial<Order>, updatedItems: OrderItem[], reason: string) => Promise<boolean>;
 
@@ -750,6 +751,7 @@ export const useStore = create<CashierStore>((set, get) => ({
           paid_instapay: (o.paid_instapay as number) ?? 0,
           type: (o.type as string) as 'sale' | 'payment' ?? 'sale',
           payment_method: (o.payment_method as any) ?? 'cash',
+          refund_method: (o.refund_method as string) ?? undefined,
           date: o.created_at as string,
           items,
           cashier_name: (o.cashier_name as string) ?? undefined,
@@ -1432,7 +1434,7 @@ export const useStore = create<CashierStore>((set, get) => ({
     }
   },
 
-  processReturn: async (orderId, returns) => {
+  processReturn: async (orderId, returns, refundMethod = 'cash') => {
     const state = get();
     const orderIndex = state.orders.findIndex((o) => o.id === orderId);
     if (orderIndex === -1 || returns.length === 0) return false;
@@ -1568,10 +1570,21 @@ export const useStore = create<CashierStore>((set, get) => ({
         if (paidError) {
           console.error('Failed to update paid_amount for cash refund:', paidError);
         }
+        // Record which method the cash was refunded through (best-effort: the
+        // refund_method column may not exist yet on older databases).
+        const { error: methodError } = await supabase
+          .from('orders')
+          .update({ refund_method: refundMethod })
+          .eq('id', orderId);
+        if (methodError) {
+          console.warn('Could not store refund_method (column may be missing):', methodError.message);
+        }
       }
 
       const updatedOrders = state.orders.map((o, idx) =>
-        idx === orderIndex ? { ...o, items: updatedItems, paid_amount: finalPaidAmount } : o
+        idx === orderIndex
+          ? { ...o, items: updatedItems, paid_amount: finalPaidAmount, refund_method: totalRefundAmount > 0 ? refundMethod : o.refund_method }
+          : o
       );
 
       set({ orders: updatedOrders, products: updatedProducts });

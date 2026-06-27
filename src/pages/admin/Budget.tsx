@@ -160,7 +160,9 @@ export default function Budget() {
           category: 'مرتجعات عملاء',
           description: `إرجاع للفاتورة #${o.id}`,
           amount: totalRefunded,
-          payment_method: (['visa', 'wallet', 'instapay'].includes(o.payment_method) ? o.payment_method : 'cash') as 'cash' | 'visa' | 'wallet' | 'instapay',
+          payment_method: ((o.refund_method && ['cash', 'visa', 'wallet', 'instapay'].includes(o.refund_method))
+            ? o.refund_method
+            : (['visa', 'wallet', 'instapay'].includes(o.payment_method) ? o.payment_method : 'cash')) as 'cash' | 'visa' | 'wallet' | 'instapay',
           date: new Date(o.date),
           car_id: o.car_id
         });

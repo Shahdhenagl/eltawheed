@@ -169,7 +169,7 @@ export default function Finance() {
       .reduce((sum, o) => sum + getSafeMethodAmount(o, method, 'paid_amount'), 0);
     
     const returnsOut = activeOrders
-      .filter(o => new Date(o.date) < startOfPeriod && getPrimaryMethod(o) === method)
+      .filter(o => new Date(o.date) < startOfPeriod && (o.refund_method || getPrimaryMethod(o)) === method)
       .reduce((sum, o) => sum + calculateCashRefunded(o), 0);
 
     const expensesOut = expenses
@@ -264,7 +264,7 @@ export default function Finance() {
   const getDailyByMethod = (method: string) => {
     const inc = periodTransactions.orders.reduce((sum, o) => sum + getSafeMethodAmount(o, method, 'paid_amount'), 0);
     const returnsOut = periodTransactions.orders
-      .filter(o => getPrimaryMethod(o) === method)
+      .filter(o => (o.refund_method || getPrimaryMethod(o)) === method)
       .reduce((sum, o) => sum + calculateCashRefunded(o), 0);
     const outExp = periodTransactions.expenses.reduce((sum, e) => sum + getSafeMethodAmount(e, method, 'amount'), 0);
     const outPur = periodTransactions.purchases.reduce((sum, inv) => sum + getSafeMethodAmount(inv, method, 'paid_amount'), 0);
@@ -313,7 +313,7 @@ export default function Finance() {
       const returnedVal = calculateCashRefunded(o);
 
       if (returnedVal > 0) {
-        const primaryMethod = getPrimaryMethod(o);
+        const primaryMethod = o.refund_method || getPrimaryMethod(o);
         list.push({
           id: `${o.id}-return`,
           type: 'مرتجع مبيعات',

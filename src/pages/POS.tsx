@@ -155,6 +155,8 @@ export default function POS() {
   // Amount of the return value applied to the customer's debt. null = automatic
   // (settle as much debt as possible first); a number = cashier override (0 = don't deduct).
   const [returnDebtDeduction, setReturnDebtDeduction] = useState<number | null>(null);
+  // Method used to refund cash to the customer on a return.
+  const [refundMethod, setRefundMethod] = useState<'cash' | 'visa' | 'wallet' | 'instapay'>('cash');
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [lastInvoiceId, setLastInvoiceId] = useState('');
   const [lastCustomerInfo, setLastCustomerInfo] = useState<any>(null);
@@ -415,11 +417,11 @@ export default function POS() {
     const order = orders.find(o => o.id.toLowerCase() === returnSearchQuery.toLowerCase());
     if (order) {
       setActiveReturnOrder(order);
-      setPendingReturns({}); setReturnDebtDeduction(null);
+      setPendingReturns({}); setReturnDebtDeduction(null); setRefundMethod('cash');
     } else {
       alert("لم يتم العثور على فاتورة بهذا الرقم");
       setActiveReturnOrder(null);
-      setPendingReturns({}); setReturnDebtDeduction(null);
+      setPendingReturns({}); setReturnDebtDeduction(null); setRefundMethod('cash');
     }
   };
 
@@ -466,12 +468,12 @@ export default function POS() {
       `يُرد كاش للعميل: ${cashToRefund.toFixed(2)} ${storeSettings.currency}`
     )) return;
 
-    const success = await processReturn(activeReturnOrder.id, returnsArray);
+    const success = await processReturn(activeReturnOrder.id, returnsArray, cashToRefund > 0 ? refundMethod : 'cash');
     if (success) {
       alert('تم إرجاع المنتجات المحددة بنجاح!');
       const updatedOrder = useStore.getState().orders.find(o => o.id === activeReturnOrder.id);
       setActiveReturnOrder(updatedOrder);
-      setPendingReturns({}); setReturnDebtDeduction(null);
+      setPendingReturns({}); setReturnDebtDeduction(null); setRefundMethod('cash');
     } else {
       alert("حدث خطأ أثناء الإرجاع. قد تكون الكمية غير متاحة.");
     }
@@ -941,11 +943,11 @@ export default function POS() {
     }).filter((r: any) => r.returnQty > 0);
 
     if (returnsArray.length > 0) {
-      await processReturn(activeReturnOrder.id, returnsArray);
+      await processReturn(activeReturnOrder.id, returnsArray, cashToRefund > 0 ? refundMethod : 'cash');
       alert('تم استرجاع الفاتورة بالكامل بنجاح');
       const updatedOrder = useStore.getState().orders.find(o => o.id === activeReturnOrder.id);
       setActiveReturnOrder(updatedOrder);
-      setPendingReturns({}); setReturnDebtDeduction(null);
+      setPendingReturns({}); setReturnDebtDeduction(null); setRefundMethod('cash');
     }
   };
 
@@ -1350,8 +1352,22 @@ export default function POS() {
                           )}
                         </div>
                         <div className="bg-emerald-500 text-white rounded-xl p-3 text-center shadow-lg shadow-emerald-200 dark:shadow-none">
-                          <div className="text-[10px] font-bold uppercase tracking-wider opacity-90">تدّي العميل كاش</div>
+                          <div className="text-[10px] font-bold uppercase tracking-wider opacity-90">تدّي العميل</div>
                           <div className="text-lg font-black">{cashToCustomer.toFixed(2)}</div>
+                          {cashToCustomer > 0 && (
+                            <div className="flex flex-wrap gap-1 mt-2 justify-center">
+                              {([['cash', 'كاش'], ['visa', 'فيزا'], ['wallet', 'محفظة'], ['instapay', 'انستا']] as const).map(([m, label]) => (
+                                <button
+                                  key={m}
+                                  type="button"
+                                  onClick={() => setRefundMethod(m)}
+                                  className={`text-[9px] font-bold px-2 py-0.5 rounded transition ${refundMethod === m ? 'bg-white text-emerald-700' : 'bg-emerald-600/60 text-white hover:bg-emerald-600'}`}
+                                >
+                                  {label}
+                                </button>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       </div>
                     )}
