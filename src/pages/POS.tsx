@@ -426,24 +426,39 @@ export default function POS() {
     const itemsSum = activeReturnOrder.items.reduce((sum: number, item: any) => sum + (item.quantity * item.sale_price), 0);
     const dr = itemsSum > 0 ? activeReturnOrder.total / itemsSum : 1;
 
-    const returnsArray = Object.keys(pendingReturns).map(productId => {
+    // Value of the goods selected for return (after invoice discount).
+    const selected = Object.keys(pendingReturns).map(productId => {
        const pr = pendingReturns[productId];
        const item = activeReturnOrder.items.find((i: any) => i.id === productId);
        const effectivePrice = item ? item.sale_price * dr : 0;
-       return {
-         productId,
-         returnQty: pr.returnQty,
-         refundAmount: pr.refundAmount,
-         debtDeduction: pr.returnType === 'debt' ? pr.returnQty * effectivePrice : 0
-       };
+       return { productId, returnQty: pr.returnQty || 0, itemValue: (pr.returnQty || 0) * effectivePrice };
     }).filter(r => r.returnQty > 0);
 
-    if (returnsArray.length === 0) {
+    if (selected.length === 0) {
        alert("الرجاء تحديد كميات للإرجاع");
        return;
     }
 
-    if (!confirm("هل أنت متأكد من تأكيد هذه المرتجعات؟")) return;
+    // Settle the customer's outstanding debt on this invoice first, then refund
+    // only the remainder as cash. The cash is distributed across items.
+    const totalReturnValue = selected.reduce((sum, r) => sum + r.itemValue, 0);
+    const outstandingDebt = Math.max(0, activeReturnOrder.total - activeReturnOrder.paid_amount);
+    const debtSettled = Math.min(totalReturnValue, outstandingDebt);
+    const cashToRefund = Math.max(0, totalReturnValue - outstandingDebt);
+    const cashRatio = totalReturnValue > 0 ? cashToRefund / totalReturnValue : 0;
+
+    const returnsArray = selected.map(r => ({
+      productId: r.productId,
+      returnQty: r.returnQty,
+      refundAmount: r.itemValue * cashRatio,
+    }));
+
+    if (!confirm(
+      `تأكيد المرتجعات المحددة؟\n` +
+      `قيمة المرتجع: ${totalReturnValue.toFixed(2)} ${storeSettings.currency}\n` +
+      `يُخصم من المديونية: ${debtSettled.toFixed(2)} ${storeSettings.currency}\n` +
+      `يُرد كاش للعميل: ${cashToRefund.toFixed(2)} ${storeSettings.currency}`
+    )) return;
 
     const success = await processReturn(activeReturnOrder.id, returnsArray);
     if (success) {
@@ -1254,14 +1269,19 @@ export default function POS() {
                 const itemsSum = activeReturnOrder.items.reduce((sum: number, item: any) => sum + (item.quantity * item.sale_price), 0);
                 const discountRatio = itemsSum > 0 ? activeReturnOrder.total / itemsSum : 1;
                 
-                // Calculate total proposed return value based on pendingReturns state, or fall back to old calculation for summary
-                let totalPendingRefund = 0;
-                Object.values(pendingReturns).forEach(pr => {
-                  totalPendingRefund += pr.refundAmount;
-                });
-                
                 // calculate past refunds
                 const pastRefunds = activeReturnOrder.items.reduce((sum: number, item: any) => sum + (item.refunded_amount || 0), 0);
+
+                // Value of goods selected for return, and how it splits between
+                // settling the customer's debt and cash refunded to them.
+                const selectedReturnValue = Object.keys(pendingReturns).reduce((s, pid) => {
+                  const pr = pendingReturns[pid];
+                  const it = activeReturnOrder.items.find((i: any) => i.id === pid);
+                  return it ? s + ((pr.returnQty || 0) * it.sale_price * discountRatio) : s;
+                }, 0);
+                const outstandingDebt = Math.max(0, activeReturnOrder.total - activeReturnOrder.paid_amount);
+                const debtSettled = Math.min(selectedReturnValue, outstandingDebt);
+                const cashToCustomer = Math.max(0, selectedReturnValue - outstandingDebt);
 
                 return (
                   <>
@@ -1285,15 +1305,20 @@ export default function POS() {
                       </div>
                     </div>
 
-                    {/* Action/Result Status */}
-                    {totalPendingRefund > 0 && (
-                      <div className="flex flex-col gap-2 mb-4">
-                        <div className="bg-emerald-500 text-white p-4 rounded-xl shadow-lg shadow-emerald-200 dark:shadow-none flex justify-between items-center animate-pulse">
-                          <div className="flex items-center gap-3">
-                            <div className="bg-white/20 p-2 rounded-lg"><Banknote size={24} /></div>
-                            <span className="font-black text-lg">إجمالي المبلغ الذي سيتم رده للعميل (كاش):</span>
-                          </div>
-                          <span className="text-2xl font-black">{totalPendingRefund.toFixed(2)} {storeSettings.currency}</span>
+                    {/* Return split: debt settlement vs cash to customer */}
+                    {selectedReturnValue > 0 && (
+                      <div className="grid grid-cols-3 gap-3 mb-4">
+                        <div className="bg-slate-100 dark:bg-slate-800 rounded-xl p-3 text-center border border-slate-200 dark:border-slate-700">
+                          <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">قيمة المرتجع</div>
+                          <div className="text-lg font-black text-slate-800 dark:text-slate-200">{selectedReturnValue.toFixed(2)}</div>
+                        </div>
+                        <div className="bg-amber-50 dark:bg-amber-900/20 rounded-xl p-3 text-center border border-amber-200 dark:border-amber-800">
+                          <div className="text-[10px] font-bold text-amber-700 dark:text-amber-400 uppercase tracking-wider">يُخصم من المديونية</div>
+                          <div className="text-lg font-black text-amber-700 dark:text-amber-400">{debtSettled.toFixed(2)}</div>
+                        </div>
+                        <div className="bg-emerald-500 text-white rounded-xl p-3 text-center shadow-lg shadow-emerald-200 dark:shadow-none">
+                          <div className="text-[10px] font-bold uppercase tracking-wider opacity-90">تدّي العميل كاش</div>
+                          <div className="text-lg font-black">{cashToCustomer.toFixed(2)}</div>
                         </div>
                       </div>
                     )}
@@ -1325,8 +1350,7 @@ export default function POS() {
                           const available = item.quantity - item.returned_quantity;
                           const effectivePrice = item.sale_price * discountRatio;
                           const pr = pendingReturns[item.id] || { returnQty: 0, refundAmount: 0, returnType: 'cash' };
-                          const isDeferred = activeReturnOrder.paid_amount < activeReturnOrder.total;
-                          
+
                           return (
                             <div key={item.id} className="flex flex-col md:flex-row justify-between items-start md:items-center p-4 bg-white dark:bg-slate-800 border border-gray-100 dark:border-slate-600 rounded-xl shadow-sm hover:shadow-md transition-shadow gap-4">
                               <div className="flex flex-col flex-1">
@@ -1362,41 +1386,6 @@ export default function POS() {
                                     className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg px-3 py-2 text-center font-bold focus:ring-2 focus:ring-red-500 outline-none"
                                     placeholder="0"
                                     disabled={available === 0}
-                                  />
-                                </div>
-                                {isDeferred && (
-                                  <div className="flex flex-col gap-2 w-full md:w-32 justify-center">
-                                    <label className="flex items-center gap-1 text-[11px] font-bold cursor-pointer hover:bg-slate-50 p-1 rounded">
-                                      <input type="radio" checked={pr.returnType !== 'debt'} onChange={() => setPendingReturns(prev => ({ ...prev, [item.id]: { ...prev[item.id], returnType: 'cash', refundAmount: pr.returnQty * effectivePrice } }))} className="accent-indigo-600" />
-                                      إرجاع كاش
-                                    </label>
-                                    <label className="flex items-center gap-1 text-[11px] font-bold text-indigo-600 cursor-pointer hover:bg-slate-50 p-1 rounded">
-                                      <input type="radio" checked={pr.returnType === 'debt'} onChange={() => setPendingReturns(prev => ({ ...prev, [item.id]: { ...prev[item.id], returnType: 'debt', refundAmount: 0 } }))} className="accent-indigo-600" />
-                                      خصم من المديونية
-                                    </label>
-                                  </div>
-                                )}
-                                <div className="flex flex-col gap-1 w-32">
-                                  <label className="text-[10px] font-bold text-slate-500">المبلغ المردود ({storeSettings.currency})</label>
-                                  <input 
-                                    type="number" 
-                                    min="0" 
-                                    step="0.01"
-                                    value={pr.returnQty > 0 ? (pr.refundAmount !== undefined ? pr.refundAmount : '') : ''}
-                                    onChange={(e) => {
-                                      const amt = parseFloat(e.target.value) || 0;
-                                      setPendingReturns(prev => ({
-                                        ...prev,
-                                        [item.id]: {
-                                          ...prev[item.id],
-                                          returnQty: prev[item.id]?.returnQty || 0,
-                                          refundAmount: amt
-                                        }
-                                      }));
-                                    }}
-                                    className="w-full bg-white dark:bg-slate-700 border border-gray-200 dark:border-slate-600 rounded-lg px-3 py-2 text-center font-bold text-red-600 focus:ring-2 focus:ring-red-500 outline-none"
-                                    placeholder="0.00"
-                                    disabled={pr.returnQty === 0}
                                   />
                                 </div>
                               </div>
