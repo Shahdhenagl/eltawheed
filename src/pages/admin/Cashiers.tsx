@@ -3,7 +3,9 @@ import { useStore } from '../../store/useStore';
 import { UserPlus, UserCircle, Phone, Lock, Trash2, Edit, Save, X, Image as ImageIcon, Camera } from 'lucide-react';
 
 export default function Cashiers() {
-  const { cashiers, loadCashiers, addCashier, updateCashier, deleteCashier, storeSettings } = useStore();
+  const { cashiers, loadCashiers, addCashier, updateCashier, deleteCashier, resetAdminPassword, storeSettings } = useStore();
+  const [adminPass, setAdminPass] = useState('');
+  const [savingAdminPass, setSavingAdminPass] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingCashier, setEditingCashier] = useState<any>(null);
   const [formData, setFormData] = useState({
@@ -113,6 +115,16 @@ export default function Cashiers() {
     }
   };
 
+  const handleSetAdminPass = async () => {
+    const pass = adminPass.trim();
+    if (pass.length < 6) { alert('كلمة مرور المدير يجب أن تكون 6 أحرف على الأقل (مثلاً 123456).'); return; }
+    if (!window.confirm(`تغيير كلمة مرور المدير إلى:\n${pass}\n\nهتسجّل دخول لوحة التحكم بيها بعد كده. متأكد؟`)) return;
+    setSavingAdminPass(true);
+    const ok = await resetAdminPassword(pass);
+    setSavingAdminPass(false);
+    if (ok) { alert('تم تغيير كلمة مرور المدير بنجاح ✅'); setAdminPass(''); }
+  };
+
   return (
     <div className="p-8 font-sans" dir="rtl">
       <div className="flex justify-between items-center mb-8">
@@ -127,6 +139,31 @@ export default function Cashiers() {
         >
           <UserPlus size={20} /> إضافة محاسب جديد
         </button>
+      </div>
+
+      {/* كلمة مرور المدير (لوحة التحكم) */}
+      <div className="mb-8 bg-amber-50 border border-amber-200 rounded-2xl p-5">
+        <div className="flex items-center gap-2 mb-1">
+          <Lock size={18} className="text-amber-600" />
+          <h2 className="text-base font-black text-amber-800">كلمة مرور المدير (الدخول للوحة التحكم)</h2>
+        </div>
+        <p className="text-amber-700 text-xs font-bold mb-3">دي كلمة المرور اللي بتدخل بيها لوحة التحكم. غيّرها هنا في أي وقت.</p>
+        <div className="flex flex-wrap items-center gap-3">
+          <input
+            type="text" dir="ltr"
+            value={adminPass}
+            onChange={(e) => setAdminPass(e.target.value)}
+            placeholder="مثال: 123456"
+            className="bg-white border border-amber-300 rounded-xl px-4 py-2.5 font-black tracking-widest text-center focus:outline-none focus:ring-2 focus:ring-amber-400"
+          />
+          <button
+            onClick={handleSetAdminPass}
+            disabled={savingAdminPass}
+            className="bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white px-5 py-2.5 rounded-xl font-bold transition"
+          >
+            {savingAdminPass ? 'جاري الحفظ...' : 'تعيين كلمة المرور'}
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

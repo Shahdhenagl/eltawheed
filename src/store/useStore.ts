@@ -374,6 +374,7 @@ interface CashierStore {
   addCashier: (cashier: Omit<Cashier, 'id' | 'created_at'>) => Promise<void>;
   updateCashier: (id: string, cashier: Partial<Cashier>) => Promise<void>;
   deleteCashier: (id: string) => Promise<void>;
+  resetAdminPassword: (password: string) => Promise<boolean>;
   deleteCashierNote: (id: string) => Promise<void>;
 
   // Coupons
@@ -571,6 +572,24 @@ const getSplits = (split: any, method: string, amount: number) => {
     instapay: method === 'instapay' ? amount : 0
   };
 };
+
+// Calls the admin-only cashier-auth serverless endpoint with the admin's
+// Supabase session token. Returns { ok, error?, cashier? }.
+async function callCashierAuth(action: string, payload: Record<string, unknown>): Promise<any> {
+  try {
+    const { data } = await supabase.auth.getSession();
+    const token = data.session?.access_token;
+    if (!token) return { ok: false, error: 'انتهت جلسة الدخول. سجّل دخول كمدير من جديد.' };
+    const res = await fetch('/api/cashier-auth', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ action, ...payload }),
+    });
+    return await res.json();
+  } catch (e: any) {
+    return { ok: false, error: String(e?.message || e) };
+  }
+}
 
 // ─── Store ───────────────────────────────────────────────────
 export const useStore = create<CashierStore>((set, get) => ({
@@ -2023,21 +2042,33 @@ export const useStore = create<CashierStore>((set, get) => ({
   },
 
   addCashier: async (cashier) => {
-    // NOTE: after Supabase Auth is enabled, a newly added cashier cannot log in
-    // until a matching Auth user is created. Re-run scripts/provision_auth_users.cjs
-    // (or create the Auth user via the Supabase dashboard) — see SECURITY_SETUP.md.
-    const { data } = await supabase.from('cashiers').insert(cashier).select().single();
-    if (data) set((state) => ({ cashiers: [data as unknown as Cashier, ...state.cashiers] }));
+    // Provision the Supabase Auth login server-side (the browser has no
+    // service-role key) so the new cashier can actually log in.
+    const out = await callCashierAuth('create', {
+      name: cashier.name, password: (cashier as any).password,
+      phone: (cashier as any).phone, photo_url: (cashier as any).photo_url,
+    });
+    if (!out.ok) { alert('تعذّر إضافة المحاسب:\n' + (out.error || '')); return; }
+    if (out.cashier) set((state) => ({ cashiers: [out.cashier as Cashier, ...state.cashiers] }));
   },
 
   updateCashier: async (id, updated) => {
-    await supabase.from('cashiers').update(updated).eq('id', id);
-    set((state) => ({ cashiers: state.cashiers.map((c) => (c.id === id ? { ...c, ...updated } : c)) }));
+    const out = await callCashierAuth('update', { id, ...updated });
+    if (!out.ok) { alert('تعذّر تعديل المحاسب:\n' + (out.error || '')); return; }
+    const merged = (out.cashier as Cashier) || ({ ...get().cashiers.find((c) => c.id === id), ...updated } as Cashier);
+    set((state) => ({ cashiers: state.cashiers.map((c) => (c.id === id ? merged : c)) }));
   },
 
   deleteCashier: async (id) => {
-    await supabase.from('cashiers').delete().eq('id', id);
+    const out = await callCashierAuth('delete', { id });
+    if (!out.ok) { alert('تعذّر حذف المحاسب:\n' + (out.error || '')); return; }
     set((state) => ({ cashiers: state.cashiers.filter((c) => c.id !== id) }));
+  },
+
+  resetAdminPassword: async (password: string) => {
+    const out = await callCashierAuth('reset_admin', { password });
+    if (!out.ok) { alert('تعذّر تغيير كلمة مرور المدير:\n' + (out.error || '')); return false; }
+    return true;
   },
 
   deleteCashierNote: async (id) => {
