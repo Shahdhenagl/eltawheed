@@ -420,8 +420,8 @@ export default function Customers() {
   };
 
   return (
-    <div className="p-8 max-w-7xl mx-auto">
-      <div className="flex justify-between items-end mb-8">
+    <div className="p-4 md:p-8 max-w-7xl mx-auto">
+      <div className="flex flex-wrap justify-between items-end gap-4 mb-8">
         <div>
           <h1 className="text-3xl font-black text-slate-800 flex items-center gap-3">
             <User style={{ color: storeSettings.themeColor }} size={32} />
@@ -429,7 +429,7 @@ export default function Customers() {
           </h1>
           <p className="text-slate-500 mt-2 font-medium">إدارة بيانات العملاء، سجل المشتريات، والمديونيات المعلقة</p>
         </div>
-        <div className="flex gap-3">
+        <div className="flex flex-wrap gap-3">
           <button 
             onClick={() => setIsAddCustomerModalOpen(true)}
             className="flex items-center gap-2 bg-indigo-600 text-white px-5 py-2.5 rounded-xl font-bold hover:bg-indigo-700 transition shadow-lg hover:shadow-indigo-200"
@@ -452,8 +452,8 @@ export default function Customers() {
       </div>
 
       <div id="customers-table" className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden flex flex-col min-h-[500px]">
-        <div className="p-4 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
-          <div className="relative w-1/3 min-w-[350px]">
+        <div className="p-4 border-b border-slate-100 bg-slate-50 flex flex-wrap items-center justify-between gap-3">
+          <div className="relative w-full md:w-1/3 md:min-w-[300px]">
             <Search className="absolute right-4 top-3 text-slate-400" size={20} />
             <input
               type="text"
@@ -1018,7 +1018,7 @@ export default function Customers() {
       {/* Add Customer Modal */}
       {isAddCustomerModalOpen && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="bg-white rounded-[40px] shadow-2xl w-full max-w-md animate-in fade-in zoom-in-95 duration-300">
+          <div className="bg-white rounded-[40px] shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in-95 duration-300">
             {/* Modal Header */}
             <div className="p-8 border-b border-slate-100 flex justify-between items-center relative overflow-hidden">
               <div 

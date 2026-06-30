@@ -169,6 +169,7 @@ export function EditInvoiceModal({ invoice, onClose }: EditInvoiceModalProps) {
 
           {/* Cart Items */}
           <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
+            <div className="overflow-x-auto">
             <table className="w-full text-sm text-right">
               <thead className="bg-slate-50 text-slate-600 font-medium">
                 <tr>
@@ -222,6 +223,7 @@ export function EditInvoiceModal({ invoice, onClose }: EditInvoiceModalProps) {
                 )}
               </tbody>
             </table>
+            </div>
           </div>
 
           {/* Payment Settings */}

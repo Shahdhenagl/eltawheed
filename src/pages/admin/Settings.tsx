@@ -32,7 +32,7 @@ export default function Settings() {
   };
 
   return (
-    <div className="p-8 max-w-3xl">
+    <div className="p-4 md:p-8 max-w-3xl">
       <div className="mb-8">
         <h1 className="text-3xl font-black text-slate-800">إعدادات النظام</h1>
         <p className="text-slate-500 mt-2">تخصيص هوية المحل وإعدادات الفواتير</p>
@@ -43,8 +43,8 @@ export default function Settings() {
           <img src={formData.logo} alt="Logo Preview" style={{ borderColor: formData.themeColor + '40' }} className="w-24 h-24 rounded-2xl border-2 border-dashed object-cover p-1 bg-slate-50" />
         </div>
 
-        <div className="grid grid-cols-2 gap-6">
-          <div className="col-span-2">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+          <div className="sm:col-span-2">
             <label className="block text-sm font-bold text-slate-700 mb-2">اسم المحل</label>
             <input 
               type="text" 
@@ -55,7 +55,7 @@ export default function Settings() {
             />
           </div>
           
-          <div className="col-span-2">
+          <div className="sm:col-span-2">
             <label className="block text-sm font-bold text-slate-700 mb-2">رابط أو صورة الشعار (Logo)</label>
             <div className="flex items-center gap-3">
               <input 
@@ -129,7 +129,7 @@ export default function Settings() {
             />
           </div>
 
-          <div className="col-span-2">
+          <div className="sm:col-span-2">
             <label className="block text-sm font-bold text-slate-700 mb-2">عنوان المحل</label>
             <input 
               type="text" 
@@ -140,7 +140,7 @@ export default function Settings() {
             />
           </div>
 
-          <div className="col-span-2">
+          <div className="sm:col-span-2">
             <label className="block text-sm font-bold text-slate-700 mb-2">رابط المقر على الخريطة (Location URL)</label>
             <input 
               type="text" 

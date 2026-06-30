@@ -467,7 +467,7 @@ export default function Employees() {
   };
 
   return (
-    <div className="p-8 max-w-7xl mx-auto h-[calc(100vh-2rem)] overflow-y-auto" dir="rtl">
+    <div className="p-4 md:p-8 max-w-7xl mx-auto h-[calc(100vh-2rem)] overflow-y-auto" dir="rtl">
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-8 bg-white p-6 rounded-[32px] shadow-sm border border-slate-100">
         <div>
@@ -488,7 +488,7 @@ export default function Employees() {
               placeholder="بحث عن موظف..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="bg-slate-50 border border-slate-200 rounded-2xl pr-12 pl-4 py-3 focus:ring-2 focus:ring-indigo-500/20 outline-none font-medium w-64"
+              className="bg-slate-50 border border-slate-200 rounded-2xl pr-12 pl-4 py-3 focus:ring-2 focus:ring-indigo-500/20 outline-none font-medium w-full md:w-1/3 md:min-w-[300px]"
             />
           </div>
           <div className="flex gap-1 bg-slate-100 p-1 rounded-2xl">
@@ -525,9 +525,9 @@ export default function Employees() {
       {selectedProfileId && profileEmployee ? (
         <div className="space-y-6">
           {/* Profile Header */}
-          <div className="flex items-center justify-between bg-white p-6 rounded-[32px] shadow-sm border border-slate-100">
+          <div className="flex flex-wrap items-center justify-between gap-4 bg-white p-6 rounded-[32px] shadow-sm border border-slate-100">
             <div className="flex items-center gap-4">
-              <button 
+              <button
                 onClick={() => setSelectedProfileId(null)}
                 className="p-3 bg-slate-50 hover:bg-slate-100 rounded-2xl text-slate-500 transition"
               >
@@ -537,7 +537,7 @@ export default function Employees() {
                 <Briefcase size={32} />
               </div>
               <div>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <h2 className="text-2xl font-black text-slate-800">{profileEmployee.name}</h2>
                   <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black border ${(profileEmployee.is_active ?? true) ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-slate-100 text-slate-500 border-slate-200'}`}>
                     {(profileEmployee.is_active ?? true) ? 'نشط' : 'غير نشط'}
@@ -546,7 +546,7 @@ export default function Employees() {
                 <p className="text-slate-500 font-medium">{profileEmployee.job_title || 'بدون مسمى'} • {profileEmployee.phone}</p>
               </div>
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <button 
                 onClick={() => handleOpenLeaveModal(profileEmployee)}
                 disabled={!(profileEmployee.is_active ?? true)}
@@ -1006,7 +1006,7 @@ export default function Employees() {
                   placeholder="01xxxxxxxxx"
                 />
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-bold text-slate-700 mb-2">المسمى الوظيفي</label>
                   <input 
@@ -1036,7 +1036,7 @@ export default function Employees() {
                   placeholder="0.00"
                 />
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-bold text-slate-700 mb-2">رصيد الإجازات السنوي</label>
                   <input 
@@ -1128,7 +1128,7 @@ export default function Employees() {
                   <p className="text-sm font-bold text-slate-700 flex items-center gap-2">
                     <Trash2 size={16} className="text-red-500" /> تطبيق خصومات إضافية
                   </p>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-[10px] font-bold text-slate-500 mb-1">بعدد الأيام</label>
                       <input 
@@ -1179,7 +1179,7 @@ export default function Employees() {
                 </div>
               )}
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-[10px] font-bold text-slate-500 mb-1">الشهر المستهدف</label>
                   <input 
@@ -1218,7 +1218,7 @@ export default function Employees() {
 
               <div className="space-y-4">
                 <p className="text-sm font-bold text-slate-700 border-b border-slate-100 pb-2">تفاصيل الدفع (طرق الدفع)</p>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-[10px] font-bold text-slate-500 mb-1">كاش</label>
                     <input type="number" className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 outline-none font-bold" value={transFormData.paid_cash} onChange={e => setTransFormData({...transFormData, paid_cash: e.target.value})} />
@@ -1298,7 +1298,7 @@ export default function Employees() {
                 );
               })()}
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-bold text-slate-700 mb-2">من تاريخ</label>
                   <input

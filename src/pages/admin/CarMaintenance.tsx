@@ -828,8 +828,8 @@ export default function CarMaintenance() {
 
   return (
     <>
-      <div className="p-8">
-        <div className="flex justify-between items-center mb-8">
+      <div className="p-4 md:p-8">
+        <div className="flex flex-wrap justify-between items-center gap-4 mb-8">
           <div>
             <h1 className="text-3xl font-black text-slate-900 flex items-center gap-3">
               <Car className="text-indigo-600" size={32} />
@@ -837,7 +837,7 @@ export default function CarMaintenance() {
             </h1>
             <p className="text-slate-500 mt-2">تسجيل السيارات ومتابعة مواعيد الصيانة والاشتراكات</p>
           </div>
-          <div className="flex gap-4">
+          <div className="flex flex-wrap gap-4">
             <button
               onClick={() => setShowAddCarModal(true)}
             className="bg-slate-800 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 hover:bg-slate-700 transition"
@@ -1360,7 +1360,7 @@ export default function CarMaintenance() {
       {/* Add Car Modal */}
       {showAddCarModal && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-50 p-4 transition-all">
-          <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-lg overflow-hidden transform transition-all scale-100">
+          <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto transform transition-all scale-100">
             <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-gradient-to-r from-slate-50 to-white">
               <h2 className="text-2xl font-black flex items-center gap-3 text-slate-800">
                 <div className="p-3 bg-indigo-100 text-indigo-600 rounded-xl">
@@ -1394,7 +1394,7 @@ export default function CarMaintenance() {
                   placeholder="مثال: تويوتا كورولا 2022 أسود"
                 />
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-bold text-slate-700 mb-2">اسم العميل <span className="text-red-500">*</span></label>
                   <input
@@ -1443,7 +1443,7 @@ export default function CarMaintenance() {
       {/* Add Appointment Modal */}
       {showAddAppointmentModal && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-50 p-4 transition-all">
-          <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-lg overflow-hidden transform transition-all scale-100">
+          <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto transform transition-all scale-100">
             <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-gradient-to-r from-slate-50 to-white">
               <h2 className="text-2xl font-black flex items-center gap-3 text-slate-800">
                 <div className="p-3 bg-indigo-100 text-indigo-600 rounded-xl">
@@ -1497,7 +1497,7 @@ export default function CarMaintenance() {
                       placeholder="توينتا، مرسيدس..."
                     />
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
                       <label className="block text-xs font-bold text-slate-600 mb-1">اسم العميل <span className="text-red-500">*</span></label>
                       <input
@@ -1567,7 +1567,7 @@ export default function CarMaintenance() {
       {/* Complete Appointment Modal */}
       {showCompleteModal && selectedAppointment && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-50 p-4 transition-all">
-          <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-lg overflow-hidden transform transition-all scale-100">
+          <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto transform transition-all scale-100">
             <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-gradient-to-r from-emerald-50 to-white">
               <h2 className="text-2xl font-black flex items-center gap-3 text-slate-800">
                 <div className="p-3 bg-emerald-100 text-emerald-600 rounded-xl">
@@ -1729,7 +1729,7 @@ export default function CarMaintenance() {
       {/* Edit Car Modal */}
       {showEditCarModal && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-50 p-4 transition-all">
-          <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-lg overflow-hidden transform transition-all scale-100">
+          <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto transform transition-all scale-100">
             <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-gradient-to-r from-blue-50 to-white">
               <h2 className="text-2xl font-black flex items-center gap-3 text-slate-800">
                 <div className="p-3 bg-blue-100 text-blue-600 rounded-xl">
@@ -1761,7 +1761,7 @@ export default function CarMaintenance() {
                   className="w-full px-5 py-4 rounded-2xl border-2 border-slate-200 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/20 transition-all font-medium bg-slate-50 focus:bg-white"
                 />
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-bold text-slate-700 mb-2">اسم العميل <span className="text-red-500">*</span></label>
                   <input
@@ -1811,7 +1811,7 @@ export default function CarMaintenance() {
       {/* Edit Appointment Modal */}
       {showEditAppointmentModal && selectedAppointment && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-50 p-4 transition-all">
-          <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-lg overflow-hidden transform transition-all scale-100">
+          <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto transform transition-all scale-100">
             <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-gradient-to-r from-blue-50 to-white">
               <h2 className="text-2xl font-black flex items-center gap-3 text-slate-800">
                 <div className="p-3 bg-blue-100 text-blue-600 rounded-xl">
@@ -1856,7 +1856,7 @@ export default function CarMaintenance() {
       {/* Subscription Generator Modal */}
       {showSubscriptionModal && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-50 p-4 transition-all">
-          <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-lg overflow-hidden transform transition-all scale-100">
+          <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto transform transition-all scale-100">
             <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-gradient-to-r from-indigo-50 to-white">
               <h2 className="text-2xl font-black flex items-center gap-3 text-slate-800">
                 <div className="p-3 bg-indigo-100 text-indigo-600 rounded-xl">
@@ -2067,7 +2067,7 @@ export default function CarMaintenance() {
                               إضافة إيراد / تحصيل
                             </h3>
                             <form onSubmit={handleAddCarRevenue} className="space-y-5 relative z-10">
-                              <div className="flex gap-4">
+                              <div className="flex flex-wrap gap-4">
                                 <div className="flex-1">
                                   <label className="block text-sm font-bold text-slate-700 mb-2">المبلغ</label>
                                   <input type="number" required value={revenueForm.amount} onChange={e => setRevenueForm({...revenueForm, amount: e.target.value})} className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 focus:border-emerald-500 bg-slate-50" placeholder="0.00" />
@@ -2161,7 +2161,7 @@ export default function CarMaintenance() {
                                   ))}
                                 </div>
                               </div>
-                              <div className="flex gap-4">
+                              <div className="flex flex-wrap gap-4">
                                 <div className="flex-1">
                                   <label className="block text-sm font-bold text-slate-700 mb-2">سعر الشراء / التكلفة <span className="text-red-500">*</span></label>
                                   <input type="number" required min="0" value={expenseForm.costPrice} onChange={e => setExpenseForm({...expenseForm, costPrice: e.target.value})} className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 focus:border-red-500 bg-slate-50 font-bold text-red-600" placeholder="0.00" />
@@ -2172,7 +2172,7 @@ export default function CarMaintenance() {
                                 </div>
                               </div>
                               
-                              <div className="flex gap-4">
+                              <div className="flex flex-wrap gap-4">
                                 <div className="flex-1">
                                   <label className="block text-sm font-bold text-slate-700 mb-2">طريقة الدفع <span className="text-slate-400 text-xs">(للتكلفة)</span></label>
                                   <select required value={expenseForm.payment_method} onChange={e => setExpenseForm({...expenseForm, payment_method: e.target.value as any})} className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 focus:border-red-500 bg-slate-50">
@@ -2209,7 +2209,7 @@ export default function CarMaintenance() {
                                   </span>
                                 </div>
                               )}
-                              <div className="flex gap-4">
+                              <div className="flex flex-wrap gap-4">
                                 <div className="flex-1">
                                   <label className="block text-sm font-bold text-slate-700 mb-2">طريقة الدفع</label>
                                   <select required value={expenseForm.payment_method} onChange={e => setExpenseForm({...expenseForm, payment_method: e.target.value as any})} className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 focus:border-red-500 bg-slate-50">

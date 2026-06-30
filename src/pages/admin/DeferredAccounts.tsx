@@ -709,7 +709,7 @@ export default function DeferredAccounts() {
    };
 
   return (
-    <div className="p-8 max-w-7xl mx-auto font-sans text-slate-800">
+    <div className="p-4 md:p-8 max-w-7xl mx-auto font-sans text-slate-800">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
         <div>
           <h1 className="text-3xl font-black text-slate-900 flex items-center gap-3">
@@ -733,8 +733,8 @@ export default function DeferredAccounts() {
               مستحقات الموردين
             </button>
           </div>
-          <div className="flex items-center gap-3">
-            <button 
+          <div className="flex flex-wrap items-center gap-3">
+            <button
               onClick={handleOpenAddDebtModal}
               style={{ backgroundColor: storeSettings.themeColor }}
               className="flex items-center gap-2 text-white px-5 py-2.5 rounded-xl font-bold hover:opacity-90 transition shadow-lg shrink-0"
@@ -905,8 +905,8 @@ export default function DeferredAccounts() {
                 </div>
               )}
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="col-span-2 text-center py-2 bg-indigo-50 rounded-xl mb-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="sm:col-span-2 text-center py-2 bg-indigo-50 rounded-xl mb-2">
                   <span className="text-xs font-bold text-indigo-400">{activeTab === 'customers' ? 'توزيع مبلغ التحصيل' : 'توزيع مبلغ السداد'}</span>
                 </div>
                 <div>
@@ -946,7 +946,7 @@ export default function DeferredAccounts() {
                   />
                 </div>
                 {activeTab === 'customers' && (
-                  <div className="col-span-2 border-t border-dashed border-slate-200 pt-3">
+                  <div className="sm:col-span-2 border-t border-dashed border-slate-200 pt-3">
                     <label className="block text-xs font-bold text-emerald-600 mb-1 text-right">🎁 خصم / إكرامية (سماح)</label>
                     <input
                       type="number" dir="ltr"
@@ -1005,8 +1005,8 @@ export default function DeferredAccounts() {
       {/* Add Debt Modal */}
       {isAddDebtOpen && (
         <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl shadow-xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
-            <div 
+          <div className="bg-white rounded-3xl shadow-xl w-full max-w-md overflow-y-auto max-h-[90vh] animate-in zoom-in-95 duration-200">
+            <div
               style={{ background: `linear-gradient(160deg, ${storeSettings.themeColor} 0%, ${storeSettings.themeColor}dd 100%)` }}
               className="p-6 text-white flex justify-between items-center"
             >

@@ -476,9 +476,9 @@ export default function Suppliers() {
   const tc = storeSettings.themeColor;
 
   return (
-    <div className="p-8 h-[calc(100vh-2rem)] overflow-y-auto">
+    <div className="p-4 md:p-8 h-[calc(100vh-2rem)] overflow-y-auto">
       {/* Header */}
-      <div className="flex justify-between items-end mb-8">
+      <div className="flex flex-wrap gap-3 justify-between items-end mb-8">
         <div>
           <h1 className="text-3xl font-black text-slate-800 flex items-center gap-3">
             <Users style={{ color: tc }} size={32} />
@@ -682,7 +682,7 @@ export default function Suppliers() {
       {/* ── Supplier Modal ── */}
       {showSupplierModal && (
         <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-[32px] shadow-2xl w-full max-w-md overflow-hidden border border-slate-100">
+          <div className="bg-white rounded-[32px] shadow-2xl w-full max-w-md overflow-hidden border border-slate-100 max-h-[90vh] overflow-y-auto">
             <div className="p-6 bg-slate-50 border-b border-slate-100 flex justify-between items-center">
               <h2 className="text-xl font-black text-slate-800">{editingSupplier ? 'تعديل بيانات المورد' : 'إضافة مورد جديد'}</h2>
               <button onClick={() => setShowSupplierModal(false)} className="p-2 rounded-xl hover:bg-slate-200 transition"><X size={20} /></button>
@@ -777,7 +777,7 @@ export default function Suppliers() {
                 </div>
 
                 {/* Paid Amount */}
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase tracking-wide text-right">كاش</label>
                     <input type="number" dir="ltr" placeholder="0.00" value={invPaidCash} onChange={e => setInvPaidCash(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-1 focus:ring-indigo-500 transition font-bold text-right" />
@@ -1033,6 +1033,7 @@ export default function Suppliers() {
                   <div className="p-6 border-b border-slate-50">
                     <h3 className="font-black text-slate-800">سجل المعاملات والفواتير</h3>
                   </div>
+                  <div className="overflow-x-auto">
                   <table className="w-full text-right text-sm">
                     <thead className="bg-slate-50 text-slate-400 font-bold uppercase tracking-wider">
                       <tr>
@@ -1069,6 +1070,7 @@ export default function Suppliers() {
                       )}
                     </tbody>
                   </table>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1088,7 +1090,7 @@ export default function Suppliers() {
                 <label className="block text-xs font-bold text-slate-500 mb-1">اسم المنتج</label>
                 <input required type="text" value={quickProductData.name} onChange={e => setQuickProductData({...quickProductData, name: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-bold" />
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-bold text-slate-500 mb-1">التصنيف</label>
                   <select required value={quickProductData.category_id} onChange={e => setQuickProductData({...quickProductData, category_id: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-bold text-sm">

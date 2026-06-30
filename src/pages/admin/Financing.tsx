@@ -274,13 +274,13 @@ export default function Financing() {
   });
 
   return (
-    <div className="p-8 space-y-6" dir="rtl">
+    <div className="p-4 md:p-8 space-y-6" dir="rtl">
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-black text-slate-800">السلف والجمعيات</h1>
           <p className="text-slate-500 mt-2 font-medium">ملفات مستقلة لكل سلفة أو جمعية، مع تحصيل وسداد جزئي وسجل معاملات واضح.</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <button onClick={() => openForm('loan')} className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-3 rounded-2xl font-black flex items-center gap-2 shadow-lg">
             <Plus size={18} /> سلفة جديدة
           </button>

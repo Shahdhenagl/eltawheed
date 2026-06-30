@@ -407,10 +407,10 @@ export default function Invoices() {
   }, [filteredOrders]);
 
   return (
-    <div className="p-8">
-      <div className="flex justify-between items-end mb-8">
+    <div className="p-4 md:p-8">
+      <div className="flex flex-wrap gap-3 justify-between items-end mb-8">
         <div>
-          <h1 className="text-3xl font-black text-slate-800">فواتير البيع والمرتجعات</h1>
+          <h1 className="text-2xl md:text-3xl font-black text-slate-800">فواتير البيع والمرتجعات</h1>
           <p className="text-slate-500 mt-2">مراجعة فواتير البيع وعمليات الاسترجاع مع الفلاتر المتقدمة</p>
         </div>
         <div className="flex gap-2">
