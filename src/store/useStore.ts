@@ -648,6 +648,9 @@ export const useStore = create<CashierStore>((set, get) => ({
       console.error('VITE_ADMIN_EMAIL is not configured. Run the security setup (SECURITY_SETUP.md).');
       return false;
     }
+    // امسح أي جلسة قديمة/تالفة محفوظة محليًا قبل تسجيل الدخول، حتى لا تفشل أول
+    // محاولة وتضطر لإدخال كلمة المرور مرتين، ولضمان التحقق الفعلي من كلمة المرور.
+    await supabase.auth.signOut({ scope: 'local' }).catch(() => {});
     const { error } = await supabase.auth.signInWithPassword({ email: adminEmail, password: pin });
     if (error) return false;
     sessionStorage.setItem('cashier_admin_auth', 'true');
@@ -671,6 +674,9 @@ export const useStore = create<CashierStore>((set, get) => ({
     const { cashiers } = get();
     const cashier = cashiers.find(c => c.name === name);
     if (!cashier || !cashier.email) return false;
+    // امسح أي جلسة قديمة/تالفة محفوظة محليًا قبل تسجيل الدخول (يمنع مشكلة إدخال
+    // كلمة المرور مرتين، ويضمن التحقق الفعلي من كلمة المرور الجديدة بعد تغييرها).
+    await supabase.auth.signOut({ scope: 'local' }).catch(() => {});
     const { error } = await supabase.auth.signInWithPassword({ email: cashier.email, password: password ?? '' });
     if (error) return false;
     sessionStorage.setItem('cashier_pos_auth', 'true');
