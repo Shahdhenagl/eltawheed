@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="pm" gradientUnits="userSpaceOnUse" x1="128" y1="120" x2="360" y2="432">
+      <stop offset="0" stop-color="#7c5cdb"/>
+      <stop offset="0.4" stop-color="#4f7fe0"/>
+      <stop offset="0.68" stop-color="#22a5d6"/>
+      <stop offset="1" stop-color="#16c4b0"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="76" fill="#191d30"/>
+  <g fill="url(#pm)">
+    <!-- الجسم الأساسي (شكل يشير لأسفل) -->
+    <rect x="128" y="120" width="44" height="44" rx="9"/>
+    <rect x="180" y="120" width="44" height="44" rx="9"/>
+    <rect x="232" y="120" width="44" height="44" rx="9"/>
+    <rect x="128" y="172" width="44" height="44" rx="9"/>
+    <rect x="180" y="172" width="44" height="44" rx="9"/>
+    <rect x="232" y="172" width="44" height="44" rx="9"/>
+    <rect x="284" y="172" width="44" height="44" rx="9"/>
+    <rect x="128" y="224" width="44" height="44" rx="9"/>
+    <rect x="180" y="224" width="44" height="44" rx="9"/>
+    <rect x="232" y="224" width="44" height="44" rx="9"/>
+    <rect x="284" y="224" width="44" height="44" rx="9"/>
+    <rect x="336" y="224" width="44" height="44" rx="9"/>
+    <rect x="180" y="276" width="44" height="44" rx="9"/>
+    <rect x="232" y="276" width="44" height="44" rx="9"/>
+    <rect x="284" y="276" width="44" height="44" rx="9"/>
+    <rect x="232" y="328" width="44" height="44" rx="9"/>
+    <rect x="284" y="328" width="44" height="44" rx="9"/>
+    <rect x="232" y="380" width="44" height="44" rx="9"/>
+    <!-- بيكسلات متطايرة لأعلى-اليمين -->
+    <rect x="300" y="80" width="34" height="34" rx="8"/>
+    <rect x="352" y="98" width="27" height="27" rx="7"/>
+    <rect x="398" y="132" width="21" height="21" rx="6"/>
+    <rect x="356" y="176" width="20" height="20" rx="6"/>
+  </g>
+</svg>
