@@ -807,7 +807,7 @@ export default function Employees() {
                       {isActive ? 'نشط' : 'غير نشط'}
                     </span>
                   </div>
-                  <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className="flex gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
                     <button onClick={() => handleOpenEmpModal(emp)} className="p-2 text-slate-400 hover:text-indigo-600 transition"><Edit3 size={18} /></button>
                     <button
                       onClick={() => handleToggleEmployeeActive(emp)}

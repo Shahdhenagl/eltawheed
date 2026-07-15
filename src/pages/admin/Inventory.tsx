@@ -585,7 +585,7 @@ export default function Inventory() {
                     <td className="p-4 text-center border-x border-slate-100 bg-slate-50/50">
                       <button onClick={() => handleEditPrice(product)} style={{ '--hover-color': storeSettings.themeColor } as any} className="flex items-center justify-center gap-2 w-full hover:text-[var(--hover-color)] transition group font-black">
                         {product.sale_price} {storeSettings.currency}<span className="text-[10px] text-slate-400 font-normal">/{getUnitConfig(product.unit).label}</span>
-                        <Edit2 size={14} className="opacity-0 group-hover:opacity-100" />
+                        <Edit2 size={14} className="opacity-100 md:opacity-0 md:group-hover:opacity-100" />
                       </button>
                     </td>
 
@@ -596,7 +596,7 @@ export default function Inventory() {
                         className={`flex items-center justify-center gap-2 w-full font-bold px-3 py-1.5 rounded-lg transition group ${isLowStock ? 'bg-red-50 text-red-600' : 'hover:bg-[var(--hover-bg)] hover:text-[var(--hover-text)]'}`}
                       >
                         {formatQty(product.stock_quantity, product.unit)}
-                        <Edit2 size={14} className="opacity-0 group-hover:opacity-100" />
+                        <Edit2 size={14} className="opacity-100 md:opacity-0 md:group-hover:opacity-100" />
                       </button>
                     </td>
 
