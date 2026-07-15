@@ -10,10 +10,9 @@ import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { printPaymentReceipt } from '../../utils/printPaymentReceipt';
-import { printMaintenanceInvoice } from '../../utils/printMaintenanceInvoice';
 
 export default function DeferredAccounts() {
-  const { customers, orders, suppliers, purchaseInvoices, storeSettings, checkout, payInvoiceDebt, addPurchaseInvoice, addSupplier, carSubscriptions } = useStore();
+  const { customers, orders, suppliers, purchaseInvoices, storeSettings, checkout, payInvoiceDebt, addPurchaseInvoice, addSupplier } = useStore();
   const activeOrders = orders.filter((order) => !order.is_deleted);
   
   const [activeTab, setActiveTab] = useState<'customers' | 'suppliers'>('customers');
@@ -361,31 +360,6 @@ export default function DeferredAccounts() {
   };
 
   const handlePrintInvoice = (order: any) => {
-    const isMaintenance = order.type === 'sale' && (
-      (order.notes && order.notes.includes('[زيارة:')) ||
-      (order.items && order.items.some((i: any) => i.id?.startsWith('maint-')))
-    );
-
-    if (isMaintenance) {
-      const car = carSubscriptions.find((c: any) => c.id === order.car_id) || 
-                  carSubscriptions.find((c: any) => c.customer_name === profileCustomer?.name || c.customer_phone === profileCustomer?.phone);
-      
-      const carInfo = car || {
-        car_number: '—',
-        car_details: '—',
-        customer_name: profileCustomer?.name || '—',
-        customer_phone: profileCustomer?.phone || '—'
-      };
-
-      printMaintenanceInvoice(order, {
-        carNumber: carInfo.car_number,
-        carDetails: carInfo.car_details,
-        customerName: carInfo.customer_name,
-        customerPhone: carInfo.customer_phone
-      }, storeSettings);
-      return;
-    }
-
     const printDate = new Date(order.created_at || Date.now()).toLocaleString('ar-EG', { calendar: 'gregory', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
     const isPayment = order.type === 'payment';
     const subtotal = isPayment ? order.total : (order.items || []).reduce((sum: number, item: any) => sum + (item.sale_price * item.quantity), 0);
@@ -1222,7 +1196,7 @@ export default function DeferredAccounts() {
                                 {inv.type === 'previous_debt' ? (
                                   <span className="text-amber-600 bg-amber-50 px-2.5 py-1 rounded-lg text-xs font-bold">مديونية سابقة</span>
                                 ) : (
-                                  <span className="text-slate-600 bg-slate-100 px-2.5 py-1 rounded-lg text-xs font-bold">فاتورة صيانة/بيع</span>
+                                  <span className="text-slate-600 bg-slate-100 px-2.5 py-1 rounded-lg text-xs font-bold">فاتورة بيع</span>
                                 )}
                               </td>
                               <td className="py-3 px-4 text-slate-500">

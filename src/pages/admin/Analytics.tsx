@@ -63,8 +63,6 @@ export default function Analytics() {
     let revenue = 0;
     let cost = 0;
     let invoiceProfit = 0;
-    let serviceRevenues = 0;
-    let serviceExpenses = 0;
     let collectedFromInvoices = 0;
     let collectedFromOther = 0;
 
@@ -86,9 +84,8 @@ export default function Analytics() {
 
     activeOrders.forEach(order => {
       if (order.type === 'payment') {
-        const { toSales, toServices, toOldDebt } = allocatePayment(order, globalOrders);
+        const { toSales, toOldDebt } = allocatePayment(order, globalOrders);
         collectedFromInvoices += toSales;
-        serviceRevenues += toServices;
         collectedFromOther += toOldDebt;
         revenue += (order.paid_amount || 0);
         return; // Skip items calculation for payment orders
@@ -102,12 +99,8 @@ export default function Analytics() {
         initialPaid = (order.paid_amount || 0) - (debtPaymentsByInvoice.get(order.id) || 0);
       }
 
-      if (order.car_id) {
-        serviceRevenues += initialPaid;
-      } else {
-        invoiceProfit += calculateInvoiceProfit(order);
-      }
-      
+      invoiceProfit += calculateInvoiceProfit(order);
+
       collectedFromInvoices += initialPaid;
       revenue += initialPaid;
 
@@ -180,18 +173,15 @@ export default function Analytics() {
       return expDate >= startLimit;
     });
 
-    const extraIncomes = filteredExpenses.filter(e => e.amount < 0 && !e.car_id).reduce((sum, e) => sum + Math.abs(e.amount), 0);
-    const totalExpenses = filteredExpenses.filter(e => e.amount > 0 && !e.car_id).reduce((sum, exp) => sum + exp.amount, 0);
-    
-    serviceExpenses = filteredExpenses.filter(e => e.car_id).reduce((sum, exp) => sum + exp.amount, 0);
-    const serviceProfit = serviceRevenues - serviceExpenses;
+    const extraIncomes = filteredExpenses.filter(e => e.amount < 0).reduce((sum, e) => sum + Math.abs(e.amount), 0);
+    const totalExpenses = filteredExpenses.filter(e => e.amount > 0).reduce((sum, exp) => sum + exp.amount, 0);
 
     collectedFromOther += extraIncomes;
     revenue += extraIncomes;
-    const finalNetProfit = invoiceProfit + serviceProfit + extraIncomes - totalExpenses;
+    const finalNetProfit = invoiceProfit + extraIncomes - totalExpenses;
 
-    return { 
-      revenue, cost, profit, invoiceProfit, margin, serviceRevenues, serviceExpenses, serviceProfit,
+    return {
+      revenue, cost, profit, invoiceProfit, margin,
       orderCount: activeOrders.filter(o => o.type === 'sale').length,
       topProductsByQty, 
       topProductsByProfit, 
@@ -217,7 +207,6 @@ export default function Analytics() {
       ['إجمالي المبيعات والإيرادات', stats.revenue, storeSettings.currency, ''],
       ['إجمالي التكلفة', stats.cost, storeSettings.currency, ''],
       ['إجمالي الربح من الفواتير', stats.invoiceProfit, storeSettings.currency, ''],
-      ['إجمالي ربح الخدمات (السيارات)', stats.serviceProfit, storeSettings.currency, ''],
       ['إجمالي المصاريف العامة', stats.totalExpenses, storeSettings.currency, ''],
       ['صافي الربح النهائي', stats.finalNetProfit, storeSettings.currency, ''],
       ['هامش الربح', stats.margin.toFixed(2) + '%', '', ''],
@@ -376,16 +365,8 @@ export default function Analytics() {
           color="emerald" 
           increase={stats.invoiceProfit > 0} 
         />
-        <StatCard 
-          title="صافي ربح الخدمات (السيارات)" 
-          value={stats.serviceProfit} 
-          unit={storeSettings.currency}
-          icon={TrendingUp} 
-          color="indigo" 
-          increase={stats.serviceProfit > 0} 
-        />
-        <StatCard 
-          title="المصاريف والتكاليف" 
+        <StatCard
+          title="المصاريف والتكاليف"
           value={stats.totalExpenses} 
           unit={storeSettings.currency}
           icon={TrendingDown} 

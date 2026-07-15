@@ -18,7 +18,6 @@ interface UnifiedTransaction {
   amount: number;
   payment_method: 'cash' | 'visa' | 'wallet' | 'instapay';
   date: Date;
-  car_id?: string;
 }
 
 export default function Budget() {
@@ -92,13 +91,13 @@ export default function Budget() {
     // Helper to add split transactions by payment method
     const addSplits = (
       id: string, type: 'revenue' | 'expense', category: string, desc: string, dateStr: string,
-      cash: number, visa: number, wallet: number, instapay: number, carId?: string
+      cash: number, visa: number, wallet: number, instapay: number
     ) => {
       const date = new Date(dateStr);
-      if (cash > 0) txs.push({ id: `${id}-cash`, originalId: id, type, category, description: desc, amount: cash, payment_method: 'cash', date, car_id: carId });
-      if (visa > 0) txs.push({ id: `${id}-visa`, originalId: id, type, category, description: desc, amount: visa, payment_method: 'visa', date, car_id: carId });
-      if (wallet > 0) txs.push({ id: `${id}-wallet`, originalId: id, type, category, description: desc, amount: wallet, payment_method: 'wallet', date, car_id: carId });
-      if (instapay > 0) txs.push({ id: `${id}-instapay`, originalId: id, type, category, description: desc, amount: instapay, payment_method: 'instapay', date, car_id: carId });
+      if (cash > 0) txs.push({ id: `${id}-cash`, originalId: id, type, category, description: desc, amount: cash, payment_method: 'cash', date });
+      if (visa > 0) txs.push({ id: `${id}-visa`, originalId: id, type, category, description: desc, amount: visa, payment_method: 'visa', date });
+      if (wallet > 0) txs.push({ id: `${id}-wallet`, originalId: id, type, category, description: desc, amount: wallet, payment_method: 'wallet', date });
+      if (instapay > 0) txs.push({ id: `${id}-instapay`, originalId: id, type, category, description: desc, amount: instapay, payment_method: 'instapay', date });
     };
 
     // 1. Pre-calculate debt payments per invoice to reconstruct original paid amount for old orders
@@ -133,7 +132,7 @@ export default function Budget() {
 
       // Revenues: payments received
       if (initialPaidAmount > 0) {
-        const cat = o.type === 'sale' ? (o.car_id ? 'إيرادات خدمات (سيارات)' : 'مبيعات كاشير') : 'تحصيل من العميل';
+        const cat = o.type === 'sale' ? 'مبيعات كاشير' : 'تحصيل من العميل';
         const desc = o.type === 'sale' ? `فاتورة مبيعات #${o.id}` : `تحصيل من العميل #${o.id}`;
         
         let cash = o.paid_cash || 0;
@@ -148,7 +147,7 @@ export default function Budget() {
           instapay = o.payment_method === 'instapay' ? initialPaidAmount : 0;
         }
 
-        addSplits(o.id, 'revenue', cat, desc, o.date, cash, visa, wallet, instapay, o.car_id);
+        addSplits(o.id, 'revenue', cat, desc, o.date, cash, visa, wallet, instapay);
       }
 
       // Expenses: Returns refunded amount
@@ -164,7 +163,6 @@ export default function Budget() {
             ? o.refund_method
             : (['visa', 'wallet', 'instapay'].includes(o.payment_method) ? o.payment_method : 'cash')) as 'cash' | 'visa' | 'wallet' | 'instapay',
           date: new Date(o.date),
-          car_id: o.car_id
         });
       }
     });
@@ -194,8 +192,7 @@ export default function Budget() {
         cash,
         visa,
         wallet,
-        instapay,
-        e.car_id
+        instapay
       );
     });
 
@@ -301,8 +298,6 @@ export default function Budget() {
     let totalExpense = 0;
     let collectedFromInvoices = 0;
     let collectedFromOther = 0;
-    let serviceRevenues = 0;
-    let serviceExpenses = 0;
 
     filteredTransactions.forEach(tx => {
       if (tx.type === 'revenue') {
@@ -310,15 +305,12 @@ export default function Budget() {
         if (tx.category === 'تحصيل من العميل') {
           const origOrder = orders.find((o: any) => o.id === tx.originalId);
           if (origOrder) {
-            const { toSales, toServices, toOldDebt } = allocatePayment(origOrder, orders);
+            const { toSales, toOldDebt } = allocatePayment(origOrder, orders);
             collectedFromInvoices += toSales;
-            serviceRevenues += toServices;
             collectedFromOther += toOldDebt;
           } else {
             collectedFromOther += tx.amount;
           }
-        } else if (tx.car_id || tx.category === 'إيرادات خدمات (سيارات)') {
-          serviceRevenues += tx.amount;
         } else if (tx.category === 'مبيعات كاشير') {
           collectedFromInvoices += tx.amount;
         } else {
@@ -327,9 +319,6 @@ export default function Budget() {
       }
       else if (tx.type === 'expense') {
         totalExpense += tx.amount;
-        if (tx.car_id || tx.category.includes('مصروفات سيارات')) {
-          serviceExpenses += tx.amount;
-        }
       }
     });
 
@@ -374,7 +363,7 @@ export default function Budget() {
     };
 
     const invoiceProfit = orders
-      .filter(order => !order.car_id && orderMatchesDateFilter(new Date(order.date)))
+      .filter(order => orderMatchesDateFilter(new Date(order.date)))
       .reduce((sum, order) => sum + getInvoiceProfitByMethod(order), 0);
 
     const getEndOfPeriod = () => {
@@ -411,7 +400,6 @@ export default function Budget() {
       totalRevenue,
       totalExpense,
       invoiceProfit,
-      serviceProfit: serviceRevenues - serviceExpenses,
       collectedFromInvoices,
       collectedFromOther,
       closingBalance,
@@ -657,18 +645,6 @@ export default function Budget() {
             <div>
               <p className="text-sm font-bold text-slate-500">إجمالي الربح من الفواتير</p>
               <h3 className="text-2xl font-black text-emerald-600 dark:text-emerald-400 mt-1">{stats.invoiceProfit.toFixed(2)}</h3>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white dark:bg-slate-800 p-6 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-700">
-          <div className="flex items-center gap-4 mb-4">
-            <div className="w-12 h-12 bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 rounded-2xl flex items-center justify-center">
-              <TrendingUp size={24} />
-            </div>
-            <div>
-              <p className="text-sm font-bold text-slate-500">صافي ربح الخدمات</p>
-              <h3 className="text-2xl font-black text-indigo-600 dark:text-indigo-400 mt-1">{stats.serviceProfit.toFixed(2)}</h3>
             </div>
           </div>
         </div>

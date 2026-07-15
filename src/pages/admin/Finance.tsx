@@ -213,7 +213,7 @@ export default function Finance() {
   const collectedFromInvoices = periodTransactions.orders.filter(o => o.type === 'sale').reduce((sum, o) => sum + getInitialPaidAmount(o), 0) +
                                 periodTransactions.orders.filter(o => o.type === 'payment').reduce((sum, o) => {
                                   const alloc = allocatePayment(o, activeOrders);
-                                  return sum + alloc.toSales + (alloc.toServices || 0);
+                                  return sum + alloc.toSales;
                                 }, 0);
   const collectedFromOther = periodTransactions.orders.filter(o => o.type === 'payment').reduce((sum, o) => sum + allocatePayment(o, activeOrders).toOldDebt, 0) + 
                              periodTransactions.expenses.filter(e => e.amount < 0).reduce((sum, e) => sum + Math.abs(e.amount), 0);

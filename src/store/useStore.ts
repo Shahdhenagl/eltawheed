@@ -101,7 +101,6 @@ export interface Order {
   notes?: string | null;
   coupon_code?: string | null;
   discount_amount?: number;
-  car_id?: string;
 }
 
 export interface Expense {
@@ -115,31 +114,6 @@ export interface Expense {
   note: string;
   payment_method: 'cash' | 'visa' | 'wallet' | 'instapay';
   date: string;
-  car_id?: string;
-}
-
-export interface CarSubscription {
-  id: string;
-  car_number: string;
-  car_details: string;
-  customer_name: string;
-  customer_phone: string;
-  created_at: string;
-  status?: 'active' | 'inactive';
-  subscription_duration_months?: number;
-  subscription_frequency_days?: number;
-}
-
-export interface MaintenanceAppointment {
-  id: string;
-  subscription_id: string;
-  appointment_date: string;
-  description: string;
-  report: string;
-  cost: number;
-  status: 'pending' | 'completed';
-  is_reminded: boolean;
-  created_at: string;
 }
 
 export interface FinancingAccount {
@@ -296,8 +270,6 @@ interface CashierStore {
   employeeLeaves: EmployeeLeave[];
   productSuggestions: ProductSuggestion[];
   cashierNotes: CashierNote[];
-  carSubscriptions: CarSubscription[];
-  maintenanceAppointments: MaintenanceAppointment[];
 
   // Data loading
   loadAll: (silent?: boolean) => Promise<void>;
@@ -323,8 +295,7 @@ interface CashierStore {
     cashierName?: string,
     notes?: string,
     couponCode?: string,
-    discountAmount?: number,
-    carId?: string
+    discountAmount?: number
   ) => Promise<string>;
   payInvoiceDebt: (
     invoiceId: string, 
@@ -420,26 +391,6 @@ interface CashierStore {
   ) => Promise<void>;
   deletePurchaseInvoice: (id: string) => Promise<void>;
   paySupplierDebt: (supplierId: string, amount: number, splitPayments?: { cash: number; visa: number; wallet: number; instapay: number }) => Promise<void>;
-
-  // Car Maintenance
-  loadCarSubscriptions: () => Promise<void>;
-  addCarSubscription: (subscription: Omit<CarSubscription, 'id' | 'created_at'>) => Promise<CarSubscription | undefined>;
-  updateCarSubscription: (id: string, updates: Partial<CarSubscription>) => Promise<void>;
-  deleteCarSubscription: (id: string) => Promise<void>;
-  toggleCarSubscriptionStatus: (id: string, status: 'active' | 'inactive') => Promise<void>;
-  addMaintenanceAppointment: (appointment: Omit<MaintenanceAppointment, 'id' | 'created_at' | 'status' | 'is_reminded' | 'report' | 'cost'>) => Promise<MaintenanceAppointment | undefined>;
-  updateMaintenanceAppointment: (id: string, updates: Partial<MaintenanceAppointment>) => Promise<void>;
-  generateSubscriptionAppointments: (carId: string, durationMonths: number, frequencyDays: number) => Promise<void>;
-  completeMaintenanceAppointment: (
-    appointmentId: string, 
-    report: string, 
-    items: { type: 'part' | 'labor', name: string, costPrice: number, salePrice: number }[],
-    splitPayments?: { cash: number; visa: number; wallet: number; instapay: number },
-    paymentMethod?: 'cash' | 'visa' | 'wallet' | 'instapay'
-  ) => Promise<void>;
-  completeAppointmentWithRegisteredTransactions: (appointmentId: string, cost: number, report: string) => Promise<void>;
-  updateMaintenanceReminded: (appointmentId: string) => Promise<void>;
-  deleteMaintenanceAppointment: (id: string) => Promise<void>;
 
   // Realtime
   setupRealtime: () => void;
@@ -624,8 +575,6 @@ export const useStore = create<CashierStore>((set, get) => ({
   productSuggestions: [],
   cashierNotes: [],
   coupons: [],
-  carSubscriptions: [],
-  maintenanceAppointments: [],
   invoiceCounter: 1,
   activeInvoiceId: '1',
   isLoading: false,
@@ -799,7 +748,6 @@ export const useStore = create<CashierStore>((set, get) => ({
                 timestamp: custRow.created_at as string 
               }
             : undefined,
-          car_id: o.car_id as string | undefined,
         };
       });
 
@@ -844,7 +792,6 @@ export const useStore = create<CashierStore>((set, get) => ({
               note: e.note,
               payment_method: e.payment_method ?? 'cash',
               date: e.created_at,
-              car_id: e.car_id
             }))
           });
         }
@@ -868,7 +815,6 @@ export const useStore = create<CashierStore>((set, get) => ({
       // Fetch purchase invoices
       get().loadPurchaseInvoices();
       get().loadFinancing();
-      get().loadCarSubscriptions();
       get().loadProductSuggestions();
       get().loadCashierNotes();
       get().loadCoupons();
@@ -1107,7 +1053,7 @@ export const useStore = create<CashierStore>((set, get) => ({
   clearCart: () => set({ cart: [] }),
 
   // ── Checkout ───────────────────────────────────────────────
-  checkout: async (total, customerDetails, paidAmount = total, type = 'sale', paymentMethod = 'cash', splitPayments, cashierName, notes, couponCode, discountAmount, carId) => {
+  checkout: async (total, customerDetails, paidAmount = total, type = 'sale', paymentMethod = 'cash', splitPayments, cashierName, notes, couponCode, discountAmount) => {
     const state = get();
     const finalCashierName = cashierName || state.activeCashier?.name || 'مدير النظام';
     if (state.cart.length === 0 && type !== 'payment' && type !== 'previous_debt') return state.activeInvoiceId;
@@ -1163,7 +1109,6 @@ export const useStore = create<CashierStore>((set, get) => ({
         notes: notes || null,
         coupon_code: couponCode || null,
         discount_amount: discountAmount || 0,
-        car_id: carId || undefined,
         items: state.cart.map((i) => ({ ...i })),
         isOffline: true
       };
@@ -1283,8 +1228,7 @@ export const useStore = create<CashierStore>((set, get) => ({
         cashier_name: finalCashierName,
         notes: notes || null,
         coupon_code: couponCode || null,
-        discount_amount: discountAmount || 0,
-        car_id: carId || null
+        discount_amount: discountAmount || 0
       });
 
       if (orderError) {
@@ -1331,8 +1275,7 @@ export const useStore = create<CashierStore>((set, get) => ({
         date: new Date().toISOString(),
         customer: finalCustomer,
         cashier_name: finalCashierName,
-        notes: notes || null,
-        car_id: carId || undefined
+        notes: notes || null
       };
 
       const updatedProducts = state.products.map((p) => {
@@ -2037,7 +1980,6 @@ export const useStore = create<CashierStore>((set, get) => ({
         customer: custRow
           ? { id: custRow.id as string, name: custRow.name as string, phone: custRow.phone as string, custom_id: custRow.custom_id as string, card_number: custRow.card_number as string, timestamp: custRow.created_at as string }
           : undefined,
-        car_id: o.car_id as string | undefined,
       };
     });
 
@@ -2166,397 +2108,6 @@ export const useStore = create<CashierStore>((set, get) => ({
     new BroadcastChannel('cashier-sync').postMessage('sync_settings');
   },
 
-  // ─── Car Maintenance Methods ─────────────────────────────────
-  loadCarSubscriptions: async () => {
-    try {
-      const { data: subs } = await supabase.from('car_subscriptions').select('*').order('created_at', { ascending: false });
-      const { data: appts } = await supabase.from('maintenance_appointments').select('*').order('appointment_date', { ascending: true });
-      if (subs) set({ carSubscriptions: subs as CarSubscription[] });
-      if (appts) set({ maintenanceAppointments: appts as MaintenanceAppointment[] });
-    } catch (e) {
-      console.error('Error loading car maintenance data:', e);
-    }
-  },
-
-  addCarSubscription: async (subscription) => {
-    try {
-      const { data, error } = await supabase.from('car_subscriptions').insert([subscription]).select().single();
-      if (error) throw error;
-      if (data) {
-        set((state) => ({ carSubscriptions: [data as CarSubscription, ...state.carSubscriptions] }));
-        return data as CarSubscription;
-      }
-    } catch (error) {
-      console.error('Error adding car subscription:', error);
-      throw error;
-    }
-  },
-
-  updateCarSubscription: async (id, updates) => {
-    try {
-      const { data, error } = await supabase
-        .from('car_subscriptions')
-        .update(updates)
-        .eq('id', id)
-        .select()
-        .single();
-      if (error) throw error;
-      if (data) {
-        set(state => ({
-          carSubscriptions: state.carSubscriptions.map(c => c.id === id ? (data as CarSubscription) : c)
-        }));
-      }
-    } catch (error) {
-      console.error('Error updating car subscription:', error);
-      throw error;
-    }
-  },
-
-  deleteCarSubscription: async (id) => {
-    try {
-      const { error } = await supabase.from('car_subscriptions').delete().eq('id', id);
-      if (error) throw error;
-      set(state => ({
-        carSubscriptions: state.carSubscriptions.filter(c => c.id !== id),
-        // Appointments cascade delete in DB, so we filter them here too
-        maintenanceAppointments: state.maintenanceAppointments.filter(a => a.subscription_id !== id)
-      }));
-    } catch (error) {
-      console.error('Error deleting car subscription:', error);
-      throw error;
-    }
-  },
-
-  toggleCarSubscriptionStatus: async (id, status) => {
-    try {
-      const { data, error } = await supabase
-        .from('car_subscriptions')
-        .update({ status })
-        .eq('id', id)
-        .select()
-        .single();
-      if (error) throw error;
-      if (data) {
-        set(state => ({
-          carSubscriptions: state.carSubscriptions.map(c => c.id === id ? (data as CarSubscription) : c)
-        }));
-      }
-    } catch (error) {
-      console.error('Error toggling car subscription status:', error);
-      throw error;
-    }
-  },
-
-  addMaintenanceAppointment: async (appointment) => {
-    try {
-      const { data, error } = await supabase.from('maintenance_appointments').insert([{
-        ...appointment,
-        status: 'pending',
-        is_reminded: false
-      }]).select().single();
-      if (error) throw error;
-      if (data) {
-        set((state) => ({ 
-          maintenanceAppointments: [...state.maintenanceAppointments, data as MaintenanceAppointment]
-            .sort((a, b) => new Date(a.appointment_date).getTime() - new Date(b.appointment_date).getTime())
-        }));
-        return data as MaintenanceAppointment;
-      }
-    } catch (error) {
-      console.error('Error adding maintenance appointment:', error);
-      throw error;
-    }
-  },
-
-  updateMaintenanceAppointment: async (id, updates) => {
-    try {
-      const { data, error } = await supabase
-        .from('maintenance_appointments')
-        .update(updates)
-        .eq('id', id)
-        .select()
-        .single();
-      if (error) throw error;
-      if (data) {
-        set(state => ({
-          maintenanceAppointments: state.maintenanceAppointments.map(a => a.id === id ? (data as MaintenanceAppointment) : a)
-            .sort((a, b) => new Date(a.appointment_date).getTime() - new Date(b.appointment_date).getTime())
-        }));
-      }
-    } catch (error) {
-      console.error('Error updating maintenance appointment:', error);
-      throw error;
-    }
-  },
-
-  generateSubscriptionAppointments: async (carId, durationMonths, frequencyDays) => {
-    try {
-      // 1. Delete existing pending appointments for this car
-      await supabase.from('maintenance_appointments')
-        .delete()
-        .eq('subscription_id', carId)
-        .eq('status', 'pending');
-
-      // 2. Update car subscription details
-      await supabase.from('car_subscriptions')
-        .update({ 
-          subscription_duration_months: durationMonths, 
-          subscription_frequency_days: frequencyDays,
-          status: 'active'
-        })
-        .eq('id', carId);
-
-      // 3. Generate new appointments
-      const appointments = [];
-      const now = new Date();
-      const totalDays = durationMonths * 30; // approx
-      
-      for (let i = frequencyDays; i <= totalDays; i += frequencyDays) {
-        const nextDate = new Date(now.getTime() + i * 24 * 60 * 60 * 1000);
-        appointments.push({
-          subscription_id: carId,
-          appointment_date: nextDate.toISOString().split('T')[0],
-          description: 'صيانة دورية - اشتراك باقة',
-          status: 'pending',
-          is_reminded: false
-        });
-      }
-
-      if (appointments.length === 0) return;
-
-      const { data, error } = await supabase
-        .from('maintenance_appointments')
-        .insert(appointments)
-        .select();
-
-      if (error) throw error;
-      
-      // 4. Update local state
-      set(state => ({
-        carSubscriptions: state.carSubscriptions.map(c => 
-          c.id === carId 
-            ? { ...c, subscription_duration_months: durationMonths, subscription_frequency_days: frequencyDays, status: 'active' } 
-            : c
-        ),
-        maintenanceAppointments: [
-          ...state.maintenanceAppointments.filter(a => !(a.subscription_id === carId && a.status === 'pending')),
-          ...(data as MaintenanceAppointment[])
-        ].sort((a, b) => new Date(a.appointment_date).getTime() - new Date(b.appointment_date).getTime())
-      }));
-    } catch (error) {
-      console.error('Error generating subscription appointments:', error);
-      throw error;
-    }
-  },
-
-  completeMaintenanceAppointment: async (appointmentId, report, items, splitPayments, paymentMethod) => {
-    try {
-      const totalCost = items.reduce((sum, item) => sum + item.costPrice, 0);
-      const totalSale = items.reduce((sum, item) => sum + item.salePrice, 0);
-
-      // 1. Update appointment
-      const { data, error } = await supabase.from('maintenance_appointments')
-        .update({ status: 'completed', report, cost: totalSale })
-        .eq('id', appointmentId)
-        .select().single();
-      if (error) throw error;
-
-      const appointment = data as MaintenanceAppointment;
-      const subscription = get().carSubscriptions.find(s => s.id === appointment.subscription_id);
-      const carInfo = subscription ? `للسيارة ${subscription.car_number}` : '';
-
-      // 2. Add Expense for the parts cost
-      if (totalCost > 0) {
-        await get().addExpense({
-          category: 'مصروفات سيارات',
-          amount: totalCost,
-          paid_cash: paymentMethod === 'cash' ? totalCost : 0,
-          paid_visa: paymentMethod === 'visa' ? totalCost : 0,
-          paid_wallet: paymentMethod === 'wallet' ? totalCost : 0,
-          paid_instapay: paymentMethod === 'instapay' ? totalCost : 0,
-          note: `تكلفة قطع غيار زيارة صيانة ${carInfo}`,
-          payment_method: paymentMethod || 'cash',
-          car_id: appointment.subscription_id
-        });
-      }
-
-      // 3. Add as order (income & customer history)
-      if (totalSale > 0) {
-        // Save current cart
-        const tempCart = get().cart;
-        
-        // Map items to fake cart
-        const maintenanceCart = items.map((item, index) => ({
-          id: `maint-${appointment.id}-${index}`,
-          name: `${item.type === 'part' ? 'قطعة غيار: ' : 'مصنعية: '}${item.name}`,
-          category_id: '',
-          barcode: '',
-          purchase_price: item.costPrice,
-          average_purchase_price: item.costPrice,
-          sale_price: item.salePrice,
-          stock_quantity: 99999, // dummy value
-          unit: 'قطعة',
-          quantity: 1,
-          returned_quantity: 0
-        }));
-
-        set({ cart: maintenanceCart });
-
-        // Checkout creates the order, logs revenue, and registers the customer if they don't exist
-        await get().checkout(
-          totalSale, // total
-          { name: subscription?.customer_name || 'بدون اسم', phone: subscription?.customer_phone || '' }, // customer details
-          totalSale, // paidAmount
-          'sale', // type
-          paymentMethod || 'cash', // payment method
-          splitPayments, // split payments
-          undefined, // cashier name
-          `إيراد صيانة - الموعد: ${appointment.appointment_date}`, // notes
-          undefined, // couponCode
-          undefined, // discountAmount
-          appointment.subscription_id // carId
-        );
-
-        // Restore original cart
-        set({ cart: tempCart });
-      }
-
-      if (data) {
-        const completedAppt = data as MaintenanceAppointment;
-        set((state) => {
-          const updatedAppointments = state.maintenanceAppointments.map(a => 
-            a.id === appointmentId ? completedAppt : a
-          );
-          
-          // Check remaining pending appointments for this car
-          const remainingAppts = updatedAppointments.filter(
-            a => a.subscription_id === completedAppt.subscription_id && a.status === 'pending'
-          );
-          
-          const carSub = state.carSubscriptions.find(c => c.id === completedAppt.subscription_id);
-          if (carSub && carSub.subscription_duration_months) {
-            if (remainingAppts.length === 0) {
-              sendTelegramAlert({
-                message: `⚠️ تنبيه: انتهى تعاقد الصيانة!\nالسيارة: ${carSub.car_number}\nالعميل: ${carSub.customer_name}\nالهاتف: ${carSub.customer_phone}`,
-                type: 'warning'
-              });
-            } else if (remainingAppts.length <= 2) {
-              sendTelegramAlert({
-                message: `ℹ️ تنبيه: اقترب انتهاء تعاقد الصيانة!\nالسيارة: ${carSub.car_number}\nالعميل: ${carSub.customer_name}\nالهاتف: ${carSub.customer_phone}\nمتبقي: ${remainingAppts.length} زيارة`,
-                type: 'info'
-              });
-            }
-          }
-
-          return { maintenanceAppointments: updatedAppointments };
-        });
-      }
-    } catch (error) {
-      console.error('Error completing maintenance appointment:', error);
-      throw error;
-    }
-  },
-
-  completeAppointmentWithRegisteredTransactions: async (appointmentId, cost, report) => {
-    try {
-      const { data, error } = await supabase.from('maintenance_appointments')
-        .update({ status: 'completed', cost, report })
-        .eq('id', appointmentId)
-        .select().single();
-      if (error) throw error;
-
-      if (data) {
-        const completedAppt = data as MaintenanceAppointment;
-        set((state) => {
-          const updatedAppointments = state.maintenanceAppointments.map(a => 
-            a.id === appointmentId ? completedAppt : a
-          );
-          
-          const remainingAppts = updatedAppointments.filter(
-            a => a.subscription_id === completedAppt.subscription_id && a.status === 'pending'
-          );
-          
-          const carSub = state.carSubscriptions.find(c => c.id === completedAppt.subscription_id);
-          if (carSub && carSub.subscription_duration_months) {
-            if (remainingAppts.length === 0) {
-              sendTelegramAlert({
-                message: `⚠️ تنبيه: انتهى تعاقد الصيانة!\nالسيارة: ${carSub.car_number}\nالعميل: ${carSub.customer_name}\nالهاتف: ${carSub.customer_phone}`,
-                type: 'warning'
-              });
-            } else if (remainingAppts.length <= 2) {
-              sendTelegramAlert({
-                message: `ℹ️ تنبيه: اقترب انتهاء تعاقد الصيانة!\nالسيارة: ${carSub.car_number}\nالعميل: ${carSub.customer_name}\nالهاتف: ${carSub.customer_phone}\nمتبقي: ${remainingAppts.length} زيارة`,
-                type: 'info'
-              });
-            }
-          }
-
-          return { maintenanceAppointments: updatedAppointments };
-        });
-      }
-    } catch (error) {
-      console.error('Error completing appointment with registered transactions:', error);
-      throw error;
-    }
-  },
-
-  updateMaintenanceReminded: async (appointmentId) => {
-    try {
-      const { error } = await supabase.from('maintenance_appointments')
-        .update({ is_reminded: true })
-        .eq('id', appointmentId);
-      if (error) throw error;
-      
-      set((state) => ({
-        maintenanceAppointments: state.maintenanceAppointments.map(a => 
-          a.id === appointmentId ? { ...a, is_reminded: true } : a
-        )
-      }));
-    } catch (error) {
-      console.error('Error updating maintenance reminded status:', error);
-    }
-  },
-
-  deleteMaintenanceAppointment: async (appointmentId: string) => {
-    try {
-      const state = get();
-      
-      // 1. Delete the appointment in Supabase
-      const { error: deleteApptError } = await supabase
-        .from('maintenance_appointments')
-        .delete()
-        .eq('id', appointmentId);
-      if (deleteApptError) throw deleteApptError;
-
-      // 2. Find and delete related orders
-      const relatedOrders = state.orders.filter(o => 
-        (o.notes && o.notes.includes(`[زيارة:${appointmentId}]`)) ||
-        (o.items && o.items.some(item => item.id?.startsWith(`maint-${appointmentId}`)))
-      );
-      
-      for (const order of relatedOrders) {
-        await state.deleteOrder(order.id, 'حذف تلقائي مع موعد الصيانة');
-      }
-
-      // 3. Find and delete related expenses
-      const relatedExpenses = state.expenses.filter(e => 
-        e.note && e.note.includes(`[زيارة:${appointmentId}]`)
-      );
-
-      for (const expense of relatedExpenses) {
-        await state.deleteExpense(expense.id);
-      }
-
-      // 4. Update local state
-      set(state => ({
-        maintenanceAppointments: state.maintenanceAppointments.filter(a => a.id !== appointmentId)
-      }));
-    } catch (error) {
-      console.error('Error deleting maintenance appointment:', error);
-      throw error;
-    }
-  },
-
 setupRealtime: () => {
     // loadAll() can run more than once (e.g. again right after login), and
     // re-subscribing to an already-subscribed channel throws
@@ -2599,7 +2150,6 @@ setupRealtime: () => {
             notes: newOrder.notes || null,
             coupon_code: newOrder.coupon_code || null,
             discount_amount: newOrder.discount_amount || 0,
-            car_id: newOrder.car_id || undefined,
             customer: customer ? {
               id: customer.id,
               name: customer.name,
@@ -2655,7 +2205,6 @@ setupRealtime: () => {
                     notes: updatedOrder.notes || null,
                     coupon_code: updatedOrder.coupon_code || null,
                     discount_amount: updatedOrder.discount_amount || 0,
-                    car_id: updatedOrder.car_id || undefined,
                   }
                 : order
             )
@@ -2783,7 +2332,6 @@ setupRealtime: () => {
       paid_instapay: expense.paid_instapay || 0,
       note: expense.note,
       payment_method: expense.payment_method,
-      car_id: expense.car_id || null
     }).select().single();
     
     if (error) {
@@ -2803,7 +2351,6 @@ setupRealtime: () => {
         note: (data as any).note,
         payment_method: (data as any).payment_method,
         date: (data as any).created_at,
-        car_id: (data as any).car_id
       };
       set((state) => ({ expenses: [newExp, ...state.expenses] }));
     }

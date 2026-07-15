@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useStore } from '../../store/useStore';
-import { Search, FileText, Table as TableIcon, User, Eye, Printer, X, TrendingUp, Wallet, ArrowRightLeft, CreditCard, Archive, Car } from 'lucide-react';
+import { Search, FileText, Table as TableIcon, User, Eye, Printer, X, TrendingUp, Wallet, ArrowRightLeft, CreditCard, Archive } from 'lucide-react';
 import { normalizeArabic } from '../../utils/textUtils';
 import { calculateOrderReturnValue } from '../../utils/returns';
 import { escapeHtml } from '../../utils/escapeHtml';
@@ -10,15 +10,13 @@ import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { printPaymentReceipt } from '../../utils/printPaymentReceipt';
-import { printMaintenanceInvoice } from '../../utils/printMaintenanceInvoice';
 
 export default function Customers() {
-  const { customers, orders, storeSettings, carSubscriptions, maintenanceAppointments, expenses } = useStore();
+  const { customers, orders, storeSettings } = useStore();
   const activeOrders = orders.filter((order) => !order.is_deleted);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [profileTab, setProfileTab] = useState<'orders' | 'cars'>('orders');
   const [isAddCustomerModalOpen, setIsAddCustomerModalOpen] = useState(false);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
@@ -39,113 +37,6 @@ export default function Customers() {
     (c.custom_id || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
     c.id.substring(0, 8).toLowerCase().includes(searchQuery.toLowerCase())
   );
-
-  const getAppointmentCost = (appointment: any, car: any) => {
-    const linkedOrders = orders.filter(o => 
-      o.car_id === car.id && 
-      (!o.is_deleted) &&
-      (((o.notes || '').includes(`[زيارة:${appointment.id}]`)) || 
-       o.items?.some(i => i.id?.startsWith(`maint-${appointment.id}`)))
-    );
-    if (linkedOrders.length > 0) {
-      return linkedOrders.reduce((sum, o) => sum + (o.total || o.paid_amount || 0), 0);
-    }
-    return appointment.cost || 0;
-  };
-
-  const handlePrintMaintenance = (appointment: any, car: any) => {
-    const linkedOrders = orders.filter(o => 
-      o.car_id === car.id && 
-      (!o.is_deleted) &&
-      (((o.notes || '').includes(`[زيارة:${appointment.id}]`)) || 
-       o.items?.some(i => i.id?.startsWith(`maint-${appointment.id}`)))
-    );
-
-    let order;
-    if (linkedOrders.length > 0) {
-      const consolidatedItems = linkedOrders.flatMap(o => {
-        if (!o.items || o.items.length === 0) {
-          const name = (o.notes || '').replace(/\[زيارة:[^\]]+\]/g, '').trim() || 'إيراد صيانة';
-          return [{
-            id: `virtual-${o.id}`,
-            name,
-            barcode: '',
-            purchase_price: 0,
-            average_purchase_price: 0,
-            sale_price: o.total || o.paid_amount || 0,
-            stock_quantity: 99999,
-            category_id: '',
-            unit: 'قطعة',
-            quantity: 1,
-            returned_quantity: 0,
-            refunded_amount: 0,
-            date: new Date(o.date).toLocaleDateString('ar-SA')
-          }];
-        }
-        return o.items.map(item => ({
-          ...item,
-          date: new Date(o.date).toLocaleDateString('ar-SA')
-        }));
-      });
-
-      const grandTotal = consolidatedItems.reduce((sum, item) => sum + item.sale_price * item.quantity, 0);
-      const paymentMethod = linkedOrders[0]?.payment_method || 'cash';
-
-      order = {
-        id: appointment.id,
-        total: grandTotal,
-        paid_amount: grandTotal,
-        paid_cash: paymentMethod === 'cash' ? grandTotal : 0,
-        paid_visa: paymentMethod === 'visa' ? grandTotal : 0,
-        paid_wallet: paymentMethod === 'wallet' ? grandTotal : 0,
-        paid_instapay: paymentMethod === 'instapay' ? grandTotal : 0,
-        type: 'sale' as const,
-        payment_method: paymentMethod,
-        date: appointment.appointment_date || new Date().toISOString(),
-        items: consolidatedItems,
-        is_deleted: false,
-        report: appointment.report || appointment.description || ''
-      };
-    } else {
-      order = {
-        id: appointment.id,
-        total: appointment.cost || 0,
-        paid_amount: appointment.cost || 0,
-        paid_cash: appointment.cost || 0,
-        paid_visa: 0,
-        paid_wallet: 0,
-        paid_instapay: 0,
-        type: 'sale' as const,
-        payment_method: 'cash' as const,
-        date: appointment.appointment_date || appointment.created_at || new Date().toISOString(),
-        items: [
-          {
-            id: `maint-${appointment.id}-fallback`,
-            name: `زيارة صيانة - ${appointment.report || 'بدون تقرير'}`,
-            barcode: '',
-            purchase_price: 0,
-            average_purchase_price: 0,
-            sale_price: appointment.cost || 0,
-            stock_quantity: 99999,
-            category_id: '',
-            unit: 'قطعة',
-            quantity: 1,
-            returned_quantity: 0,
-            refunded_amount: 0
-          }
-        ],
-        is_deleted: false,
-        report: appointment.report || appointment.description || ''
-      };
-    }
-    
-    printMaintenanceInvoice(order, {
-      carNumber: car.car_number,
-      carDetails: car.car_details,
-      customerName: car.customer_name,
-      customerPhone: car.customer_phone
-    }, storeSettings);
-  };
 
   const getCustomerMetrics = (customerId: string) => {
     const customerOrders = orders.filter(o => o.customer?.id === customerId);
@@ -785,24 +676,8 @@ export default function Customers() {
                 </div>
               )}
 
-              {/* Tabs */}
-              <div className="flex bg-white border border-slate-200 rounded-2xl p-1 mb-6">
-                <button
-                  onClick={() => setProfileTab('orders')}
-                  className={`flex-1 py-3 text-sm font-bold rounded-xl transition-all ${profileTab === 'orders' ? 'bg-indigo-50 text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-                >
-                  سجل الطلبات والفواتير
-                </button>
-                <button
-                  onClick={() => setProfileTab('cars')}
-                  className={`flex-1 py-3 text-sm font-bold rounded-xl transition-all ${profileTab === 'cars' ? 'bg-indigo-50 text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-                >
-                  السيارات والصيانات
-                </button>
-              </div>
-
               {/* Orders History Table */}
-              {profileTab === 'orders' && (
+              {(
                 <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
                   <div className="p-5 border-b border-slate-50 flex items-center gap-2">
                     <FileText className="text-slate-400" size={18} />
@@ -881,134 +756,6 @@ export default function Customers() {
                   </tbody>
                 </table>
               </div>
-              )}
-
-              {/* Cars History Table */}
-              {profileTab === 'cars' && (
-                <div className="space-y-6">
-                  {(() => {
-                    const customerCars = carSubscriptions.filter(c => c.customer_phone === selectedCustomer.phone || c.customer_name === selectedCustomer.name);
-                    if (customerCars.length === 0) {
-                      return <div className="bg-white p-10 text-center text-slate-400 font-bold rounded-3xl border border-slate-100">لا يوجد سيارات مسجلة لهذا العميل</div>;
-                    }
-
-                    return customerCars.map(car => {
-                      const carOrders = orders.filter(o => o.car_id === car.id && !o.is_deleted);
-                      const carExpenses = expenses.filter(e => e.car_id === car.id);
-                      const completedAppointments = maintenanceAppointments.filter(a => a.subscription_id === car.id && a.status === 'completed');
-                      
-                      const totalRevenue = carOrders.reduce((sum, o) => sum + Number(o.paid_amount || 0), 0);
-                      const totalExpense = carExpenses.reduce((sum, e) => sum + Number(e.amount || 0), 0);
-                      const netProfit = totalRevenue - totalExpense;
-
-                      return (
-                        <div key={car.id} className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden p-6">
-                          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
-                            <div>
-                              <h3 className="font-black text-xl text-slate-800 flex items-center gap-2">
-                                <Car className="text-indigo-600" size={24} />
-                                {car.car_number}
-                              </h3>
-                              <p className="text-slate-500 mt-1">{car.car_details}</p>
-                            </div>
-                            <div className="flex gap-4 w-full md:w-auto">
-                              <div className="flex-1 text-center bg-emerald-50 px-4 py-2 rounded-xl border border-emerald-100">
-                                <p className="text-[10px] font-bold text-emerald-600 mb-1">إجمالي الإيرادات</p>
-                                <p className="font-black text-emerald-700">{totalRevenue} ج.م</p>
-                              </div>
-                              <div className="flex-1 text-center bg-red-50 px-4 py-2 rounded-xl border border-red-100">
-                                <p className="text-[10px] font-bold text-red-600 mb-1">إجمالي المصروفات</p>
-                                <p className="font-black text-red-700">{totalExpense} ج.م</p>
-                              </div>
-                              <div className="flex-1 text-center bg-indigo-50 px-4 py-2 rounded-xl border border-indigo-100">
-                                <p className="text-[10px] font-bold text-indigo-600 mb-1">صافي الربح</p>
-                                <p className="font-black text-indigo-700">{netProfit} ج.م</p>
-                              </div>
-                            </div>
-                          </div>
-
-                          <h4 className="font-bold text-slate-700 mb-3 text-sm">مواعيد الصيانة المنتهية</h4>
-                          <div className="overflow-x-auto mb-6 bg-slate-50 rounded-2xl border border-slate-100">
-                            <table className="w-full text-right text-sm">
-                              <thead className="text-slate-500">
-                                <tr>
-                                  <th className="p-3">التاريخ</th>
-                                  <th className="p-3">الوصف</th>
-                                  <th className="p-3">التقرير</th>
-                                  <th className="p-3">التكلفة</th>
-                                  <th className="p-3">إجراءات</th>
-                                </tr>
-                              </thead>
-                              <tbody className="divide-y divide-slate-100 bg-white">
-                                {completedAppointments.length === 0 ? (
-                                  <tr><td colSpan={5} className="p-4 text-center text-slate-400">لا يوجد مواعيد منتهية</td></tr>
-                                ) : (
-                                  completedAppointments.map(a => (
-                                    <tr key={a.id}>
-                                      <td className="p-3">{new Date(a.appointment_date).toLocaleDateString('ar-SA')}</td>
-                                      <td className="p-3">{a.description}</td>
-                                      <td className="p-3">{a.report || '-'}</td>
-                                      <td className="p-3 font-bold">{getAppointmentCost(a, car)} ج.م</td>
-                                      <td className="p-3">
-                                        <button onClick={() => handlePrintMaintenance(a, car)} className="p-2 text-indigo-500 hover:text-indigo-700 bg-indigo-50 rounded-lg flex items-center gap-2 text-xs font-bold transition-all">
-                                          <Printer size={14} /> طباعة
-                                        </button>
-                                      </td>
-                                    </tr>
-                                  ))
-                                )}
-                              </tbody>
-                            </table>
-                          </div>
-
-                          <h4 className="font-bold text-slate-700 mb-3 text-sm">السجل المالي للسيارة</h4>
-                          <div className="overflow-x-auto bg-slate-50 rounded-2xl border border-slate-100">
-                            <table className="w-full text-right text-sm">
-                              <thead className="text-slate-500">
-                                <tr>
-                                  <th className="p-3">التاريخ</th>
-                                  <th className="p-3">النوع</th>
-                                  <th className="p-3">المبلغ</th>
-                                  <th className="p-3">طريقة الدفع</th>
-                                  <th className="p-3">البيان</th>
-                                </tr>
-                              </thead>
-                              <tbody className="divide-y divide-slate-100 bg-white">
-                                {[
-                                  ...carOrders.map(o => ({ ...o, _type: 'revenue' as const, _date: new Date(o.date) })),
-                                  ...carExpenses.map(e => ({ ...e, _type: 'expense' as const, _date: new Date(e.date) }))
-                                ]
-                                .sort((a, b) => b._date.getTime() - a._date.getTime())
-                                .map((t, idx) => (
-                                  <tr key={idx} className="hover:bg-slate-50">
-                                    <td className="p-3 text-slate-600">{t._date.toLocaleString('ar-SA')}</td>
-                                    <td className="p-3">
-                                      <span className={`px-2 py-1 rounded-lg text-[10px] font-bold ${t._type === 'revenue' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
-                                        {t._type === 'revenue' ? 'إيراد' : 'مصروف'}
-                                      </span>
-                                    </td>
-                                    <td className={`p-3 font-black ${t._type === 'revenue' ? 'text-emerald-600' : 'text-red-600'}`}>
-                                      {t._type === 'revenue' ? '+' : '-'}{t._type === 'revenue' ? (t as any).paid_amount : (t as any).amount} ج.م
-                                    </td>
-                                    <td className="p-3 text-slate-600 text-xs font-bold">{(t as any).payment_method === 'cash' ? 'كاش' : (t as any).payment_method === 'visa' ? 'فيزا' : (t as any).payment_method === 'wallet' ? 'محفظة' : 'انستا باي'}</td>
-                                    <td className="p-3 text-slate-700 max-w-xs truncate text-xs" title={(t as any).notes || (t as any).note}>
-                                      {(t as any).notes || (t as any).note || '-'}
-                                    </td>
-                                  </tr>
-                                ))}
-                                {carOrders.length === 0 && carExpenses.length === 0 && (
-                                  <tr>
-                                    <td colSpan={5} className="p-4 text-center text-slate-400">لا يوجد حركات مالية</td>
-                                  </tr>
-                                )}
-                              </tbody>
-                            </table>
-                          </div>
-                        </div>
-                      );
-                    });
-                  })()}
-                </div>
               )}
             </div>
           </div>

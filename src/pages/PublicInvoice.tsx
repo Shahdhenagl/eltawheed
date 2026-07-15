@@ -127,68 +127,6 @@ export default function PublicInvoice() {
           return;
         }
 
-        // Maintenance appointment if not a sale order
-        if (!o) {
-          const appt = rpc.kind === 'maintenance' ? rpc.appointment : null;
-
-          if (appt) {
-            const apptOrders = (rpc.appointment_orders ?? []) as any[];
-
-            const linkedOrders = (apptOrders ?? []).filter(ord => 
-              (ord.notes || '').includes(`[زيارة:${appt.id}]`) || 
-              (ord.order_items as any[])?.some(i => i.product_id?.startsWith(`maint-${appt.id}`))
-            );
-
-            const items = linkedOrders.flatMap(ord => {
-              const itemRows = (ord.order_items as any[]) ?? [];
-              if (itemRows.length === 0) {
-                const name = (ord.notes || '').replace(/\[زيارة:[^\]]+\]/g, '').trim() || 'إيراد صيانة';
-                return [{
-                  id: `virtual-${ord.id}`,
-                  name,
-                  quantity: 1,
-                  sale_price: ord.total || ord.paid_amount || 0,
-                  returned_quantity: 0
-                }];
-              }
-              return itemRows.map((i: any) => ({
-                id: i.product_id,
-                name: i.product_name || i.products?.name || 'منتج غير معروف',
-                quantity: i.quantity,
-                sale_price: i.sale_price,
-                returned_quantity: i.returned_quantity || 0,
-              }));
-            });
-
-            const grandTotal = items.reduce((sum, item) => sum + item.sale_price * item.quantity, 0);
-            const car = appt.car_subscriptions;
-
-            setOrder({
-              id: appt.id,
-              total: grandTotal,
-              paid_amount: grandTotal,
-              paid_cash: linkedOrders[0]?.payment_method === 'cash' ? grandTotal : 0,
-              paid_visa: linkedOrders[0]?.payment_method === 'visa' ? grandTotal : 0,
-              paid_wallet: linkedOrders[0]?.payment_method === 'wallet' ? grandTotal : 0,
-              paid_instapay: linkedOrders[0]?.payment_method === 'instapay' ? grandTotal : 0,
-              type: 'sale',
-              payment_method: linkedOrders[0]?.payment_method || 'cash',
-              date: appt.appointment_date || appt.created_at,
-              items,
-              originType: 'sale',
-              notes: appt.report || appt.description || '',
-              customer: car ? {
-                id: car.id,
-                name: car.customer_name,
-                phone: car.customer_phone,
-                custom_id: car.car_number,
-                timestamp: car.created_at
-              } : undefined
-            } as any);
-            return;
-          }
-        }
-
         // Purchase invoice
         const inv = rpc.kind === 'purchase' ? rpc.purchase : null;
 
