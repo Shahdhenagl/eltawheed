@@ -1,49 +1,12 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Package, Settings, LogOut, FileText, Users, BarChart3, Wallet, MessageCircle, CreditCard, Building2, BellRing, WifiOff, Ticket, PieChart, Car, Menu, X } from 'lucide-react';
+import { LayoutDashboard, Package, Settings, LogOut, FileText, Users, BarChart3, Wallet, MessageCircle, CreditCard, Building2, BellRing, WifiOff, Ticket, PieChart, Menu, X } from 'lucide-react';
 import { useStore } from '../../store/useStore';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 
 export default function AdminLayout() {
   const navigate = useNavigate();
-  const { storeSettings, logout, maintenanceAppointments, carSubscriptions, updateMaintenanceReminded } = useStore();
-  const [hasCheckedReminders, setHasCheckedReminders] = useState(false);
+  const { storeSettings, logout } = useStore();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-
-  useEffect(() => {
-    if (hasCheckedReminders || maintenanceAppointments.length === 0 || carSubscriptions.length === 0) return;
-
-    const checkReminders = async () => {
-      const tomorrowStr = new Date(Date.now() + 86400000).toDateString();
-      
-      for (const appt of maintenanceAppointments) {
-        if (appt.status === 'pending' && !appt.is_reminded) {
-          const apptDateStr = new Date(appt.appointment_date).toDateString();
-          if (apptDateStr === tomorrowStr) {
-            const car = carSubscriptions.find(c => c.id === appt.subscription_id);
-            if (car) {
-              // Send Telegram Alert
-              fetch('/api/telegram-alert', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  type: 'general',
-                  message: `تذكير: موعد صيانة غداً للسيارة رقم ${car.car_number} باسم ${car.customer_name}. المطلوب: ${appt.description || 'صيانة عامة'}`
-                }),
-              }).catch(console.warn);
-
-              // Update in DB so it doesn't notify again
-              await updateMaintenanceReminded(appt.id);
-              
-              // Local UI notification could be added here if needed, but Telegram is sufficient
-            }
-          }
-        }
-      }
-      setHasCheckedReminders(true);
-    };
-
-    checkReminders();
-  }, [maintenanceAppointments, carSubscriptions, hasCheckedReminders, updateMaintenanceReminded]);
 
   const navItems = [
     { name: 'نظرة عامة', path: '/admin/overview', icon: LayoutDashboard },
@@ -63,7 +26,6 @@ export default function AdminLayout() {
     { name: 'كوبونات الخصم', path: '/admin/coupons', icon: Ticket },
     { name: 'تنبيهات النواقص', path: '/admin/stock-alerts', icon: BellRing },
     { name: 'إعدادات النظام', path: '/admin/settings', icon: Settings },
-    { name: 'صيانة السيارات', path: '/admin/car-maintenance', icon: Car },
   ];
 
   const handleLogout = () => {
