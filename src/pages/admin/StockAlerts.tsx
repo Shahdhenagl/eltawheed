@@ -1,14 +1,16 @@
 import { useState } from 'react';
 import { useStore } from '../../store/useStore';
-import { AlertTriangle, PackageX, PackageMinus, Lightbulb, MessageSquare, Check, Trash2, Plus, Eye, EyeOff } from 'lucide-react';
+import { AlertTriangle, PackageX, PackageMinus, Lightbulb, MessageSquare, Check, Trash2, Plus, Eye, EyeOff, CalendarClock, CalendarX } from 'lucide-react';
+import { getExpiryInfo, expiryLabel, formatExpiryDate } from '../../utils/expiry';
 
 export default function StockAlerts() {
-  const { 
-    products, 
+  const {
+    products,
     updateProduct,
-    productSuggestions, 
-    addProductSuggestion, 
-    markSuggestionAsPurchased, 
+    storeSettings,
+    productSuggestions,
+    addProductSuggestion,
+    markSuggestionAsPurchased,
     deleteProductSuggestion,
     cashierNotes,
     markCashierNoteAsRead
@@ -26,6 +28,13 @@ export default function StockAlerts() {
   const lowStockProducts = products.filter(p => p.stock_quantity > 0 && p.stock_quantity <= LOW_STOCK_THRESHOLD);
   const unpurchasedSuggestions = productSuggestions.filter(s => !s.is_purchased);
   const unreadNotes = cashierNotes.filter(n => !n.is_read);
+
+  // الأقرب للانتهاء أولاً — دي أول حاجة المدير محتاج يتصرف فيها.
+  const byExpiry = (status: 'soon' | 'expired') => products
+    .filter(p => getExpiryInfo(p, storeSettings.expiryAlertDays).status === status)
+    .sort((a, b) => (a.expiry_date || '').localeCompare(b.expiry_date || ''));
+  const expiringSoonProducts = byExpiry('soon');
+  const expiredProducts = byExpiry('expired');
 
   const handleAddSuggestion = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -131,6 +140,106 @@ export default function StockAlerts() {
               <div className="h-full flex flex-col items-center justify-center text-slate-400 p-8 text-center">
                 <Check size={48} className="text-emerald-400 mb-4 opacity-50" />
                 <p className="font-bold">المخزون بوضع جيد ولا توجد نواقص</p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Expiring Soon Section */}
+        <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-sm border border-amber-100 dark:border-amber-900/30 overflow-hidden flex flex-col">
+          <div className="p-6 bg-amber-50 dark:bg-amber-900/10 border-b border-amber-100 dark:border-amber-900/30 flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-amber-100 dark:bg-amber-900/50 flex items-center justify-center text-amber-600 dark:text-amber-400">
+              <CalendarClock size={20} />
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-amber-700 dark:text-amber-400">أوشكت على الانتهاء</h2>
+              <p className="text-sm text-amber-600/70 mt-1">اقترب تاريخ انتهاء صلاحيتها — الافتراضي {storeSettings.expiryAlertDays} يوم</p>
+            </div>
+          </div>
+          <div className="p-6 flex-1 max-h-[400px] overflow-y-auto">
+            {expiringSoonProducts.length > 0 ? (
+              <ul className="space-y-3">
+                {expiringSoonProducts.map(product => {
+                  const info = getExpiryInfo(product, storeSettings.expiryAlertDays);
+                  return (
+                    <li key={product.id} className={`flex justify-between items-center p-4 rounded-2xl bg-slate-50 dark:bg-slate-700/30 border border-slate-100 dark:border-slate-700 transition-opacity ${product.is_hidden ? 'opacity-50 grayscale' : ''}`}>
+                      <div className="flex-1">
+                        <p className="font-bold text-slate-800 dark:text-white">{product.name}</p>
+                        <p className="text-xs text-slate-500 mt-1">
+                          ينتهي في <span className="font-bold" dir="ltr">{formatExpiryDate(product.expiry_date)}</span>
+                          {' · '}المتبقي بالمخزون: {product.stock_quantity}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <button
+                          onClick={() => updateProduct(product.id, { is_hidden: !product.is_hidden })}
+                          className={`p-2 rounded-full transition-colors ${product.is_hidden ? 'bg-slate-200 text-slate-500' : 'bg-indigo-100 text-indigo-600 hover:bg-indigo-200'}`}
+                          title={product.is_hidden ? 'إظهار في الكاشير' : 'إخفاء من الكاشير'}
+                        >
+                          {product.is_hidden ? <EyeOff size={18} /> : <Eye size={18} />}
+                        </button>
+                        <span className="px-3 py-1 bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 rounded-full text-sm font-bold whitespace-nowrap">
+                          {expiryLabel(info)}
+                        </span>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            ) : (
+              <div className="h-full flex flex-col items-center justify-center text-slate-400 p-8 text-center">
+                <Check size={48} className="text-emerald-400 mb-4 opacity-50" />
+                <p className="font-bold">لا توجد منتجات قاربت على انتهاء صلاحيتها</p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Expired Section */}
+        <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-sm border border-red-100 dark:border-red-900/30 overflow-hidden flex flex-col">
+          <div className="p-6 bg-red-50 dark:bg-red-900/10 border-b border-red-100 dark:border-red-900/30 flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-red-100 dark:bg-red-900/50 flex items-center justify-center text-red-600 dark:text-red-400">
+              <CalendarX size={20} />
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-red-700 dark:text-red-400">منتهية الصلاحية</h2>
+              <p className="text-sm text-red-600/70 mt-1">اسحبها من الرف — أخفِها من الكاشير لمنع بيعها</p>
+            </div>
+          </div>
+          <div className="p-6 flex-1 max-h-[400px] overflow-y-auto">
+            {expiredProducts.length > 0 ? (
+              <ul className="space-y-3">
+                {expiredProducts.map(product => {
+                  const info = getExpiryInfo(product, storeSettings.expiryAlertDays);
+                  return (
+                    <li key={product.id} className={`flex justify-between items-center p-4 rounded-2xl bg-slate-50 dark:bg-slate-700/30 border border-slate-100 dark:border-slate-700 transition-opacity ${product.is_hidden ? 'opacity-50 grayscale' : ''}`}>
+                      <div className="flex-1">
+                        <p className="font-bold text-slate-800 dark:text-white">{product.name}</p>
+                        <p className="text-xs text-slate-500 mt-1">
+                          انتهى في <span className="font-bold" dir="ltr">{formatExpiryDate(product.expiry_date)}</span>
+                          {' · '}المتبقي بالمخزون: {product.stock_quantity}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <button
+                          onClick={() => updateProduct(product.id, { is_hidden: !product.is_hidden })}
+                          className={`p-2 rounded-full transition-colors ${product.is_hidden ? 'bg-slate-200 text-slate-500' : 'bg-indigo-100 text-indigo-600 hover:bg-indigo-200'}`}
+                          title={product.is_hidden ? 'إظهار في الكاشير' : 'إخفاء من الكاشير'}
+                        >
+                          {product.is_hidden ? <EyeOff size={18} /> : <Eye size={18} />}
+                        </button>
+                        <span className="px-3 py-1 bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 rounded-full text-sm font-bold whitespace-nowrap">
+                          {expiryLabel(info)}
+                        </span>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            ) : (
+              <div className="h-full flex flex-col items-center justify-center text-slate-400 p-8 text-center">
+                <Check size={48} className="text-emerald-400 mb-4 opacity-50" />
+                <p className="font-bold">لا توجد منتجات منتهية الصلاحية</p>
               </div>
             )}
           </div>

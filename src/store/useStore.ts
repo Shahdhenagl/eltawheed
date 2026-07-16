@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { supabase } from '../lib/supabase';
 import { unitMinQty, unitStep } from '../utils/units';
+import { DEFAULT_EXPIRY_ALERT_DAYS } from '../utils/expiry';
 
 // ─── Types ───────────────────────────────────────────────────
 export interface Product {
@@ -14,6 +15,9 @@ export interface Product {
   category_id: string;
   unit: string; // وحدة المنتج: قطعة / كيلو / جرام / لتر ... (المخزون والسعر بهذه الوحدة)
   is_hidden?: boolean; // إخفاء المنتج من الكاشير دون حذفه
+  production_date?: string | null; // تاريخ الإنتاج (اختياري) — YYYY-MM-DD
+  expiry_date?: string | null; // تاريخ انتهاء الصلاحية (اختياري) — YYYY-MM-DD
+  expiry_alert_days?: number | null; // أيام التنبيه قبل الانتهاء — فارغ = الافتراضي من الإعدادات
 }
 
 export interface Category {
@@ -170,6 +174,7 @@ export interface StoreSettings {
   whatsappCountryCode: string;
   initial_balance: number;
   locationUrl?: string;
+  expiryAlertDays: number; // أيام التنبيه الافتراضية قبل انتهاء صلاحية المنتج
 }
 
 export interface Employee {
@@ -426,6 +431,7 @@ function mapSettings(row: Record<string, unknown>): StoreSettings {
     whatsappCountryCode: (row.whatsapp_country_code as string) ?? '2',
     initial_balance: (row.initial_balance as number) ?? 0,
     locationUrl: (row.location_url as string) ?? '',
+    expiryAlertDays: (row.expiry_alert_days as number) ?? DEFAULT_EXPIRY_ALERT_DAYS,
   };
 }
 
@@ -556,6 +562,7 @@ export const useStore = create<CashierStore>((set, get) => ({
     whatsappCountryCode: '2',
     initial_balance: 0,
     locationUrl: '',
+    expiryAlertDays: DEFAULT_EXPIRY_ALERT_DAYS,
   },
   products: [],
   categories: [],
@@ -2095,6 +2102,7 @@ export const useStore = create<CashierStore>((set, get) => ({
     if (newSettings.whatsappCountryCode !== undefined) mapped.whatsapp_country_code = newSettings.whatsappCountryCode;
     if (newSettings.initial_balance !== undefined) mapped.initial_balance = newSettings.initial_balance;
     if (newSettings.locationUrl !== undefined) mapped.location_url = newSettings.locationUrl;
+    if (newSettings.expiryAlertDays !== undefined) mapped.expiry_alert_days = newSettings.expiryAlertDays;
 
     const { data: existing } = await supabase.from('store_settings').select('id').limit(1).maybeSingle();
     

@@ -9,6 +9,7 @@ import {
   sendTelegramText,
 } from './_report-utils.js';
 import { buildDailyMessage } from './daily-report.js';
+import { buildExpiryMessage } from './expiry-report.js';
 import { buildMonthlyMessage } from './monthly-finance-report.js';
 import { buildInventoryMessage } from './monthly-inventory-report.js';
 
@@ -96,6 +97,14 @@ export default async function handler(req, res) {
     const dayData = await fetchReportData(supabase, dayRange.start, dayRange.end);
     await sendTelegramText(buildDailyMessage(settings, dayRange, dayData));
     sent.push('daily');
+
+    // ملخص الصلاحية — بيستخدم المنتجات اللي التقرير اليومي جابها بالفعل.
+    // بيتخطى تماماً لو مفيش منتج أوشك أو انتهى.
+    const expiryText = buildExpiryMessage(settings, dayData.products, today);
+    if (expiryText) {
+      await sendTelegramText(expiryText);
+      sent.push('expiry');
+    }
 
     sent.push(...await sendFinancingReminders(supabase, settings, today));
 

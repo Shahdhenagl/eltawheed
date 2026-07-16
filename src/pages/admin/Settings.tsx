@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useStore } from '../../store/useStore';
+import { DEFAULT_EXPIRY_ALERT_DAYS } from '../../utils/expiry';
 
 export default function Settings() {
   const { storeSettings, updateSettings } = useStore();
@@ -163,6 +164,20 @@ export default function Settings() {
               onChange={(e) => setFormData({...formData, taxRate: parseFloat(e.target.value) || 0})}
               className="w-full bg-slate-50 border border-slate-200 py-3 px-4 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none transition"
             />
+          </div>
+
+          <div>
+            <label className="block text-sm font-bold text-slate-700 mb-2">التنبيه قبل انتهاء صلاحية المنتج بـ (أيام)</label>
+            <input
+              type="number"
+              min="1"
+              step="1"
+              value={formData.expiryAlertDays}
+              onChange={(e) => setFormData({...formData, expiryAlertDays: Math.max(1, parseInt(e.target.value) || DEFAULT_EXPIRY_ALERT_DAYS)})}
+              className="w-full bg-slate-50 border border-slate-200 py-3 px-4 rounded-xl focus:ring-2 focus:outline-none transition"
+              style={{ '--tw-ring-color': formData.themeColor + '40' } as any}
+            />
+            <p className="text-[11px] text-slate-400 mt-1 text-right">القيمة الافتراضية لكل المنتجات — يمكن تخصيص عدد مختلف لكل منتج من صفحة المخزون.</p>
           </div>
 
           <div>

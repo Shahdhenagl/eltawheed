@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useStore, type Product } from '../store/useStore';
-import { ShoppingCart, Search, Plus, Minus, Trash2, Banknote, RefreshCcw, Moon, Sun, ArrowRightLeft, X, Printer, CreditCard, Smartphone, Zap, ScanLine, Camera, Box, Check, ChevronRight, ChevronLeft, FileText, MessageSquare, Send, Wallet, Edit2 } from 'lucide-react';
+import { ShoppingCart, Search, Plus, Minus, Trash2, Banknote, RefreshCcw, Moon, Sun, ArrowRightLeft, X, Printer, CreditCard, Smartphone, Zap, ScanLine, Camera, Box, Check, ChevronRight, ChevronLeft, FileText, MessageSquare, Send, Wallet, Edit2, CalendarClock } from 'lucide-react';
 import { Html5Qrcode } from 'html5-qrcode';
 import { normalizeArabic } from '../utils/textUtils';
 import { getUnitConfig, isFractionalUnit, formatQty } from '../utils/units';
+import { getExpiryInfo, expiryLabel, formatExpiryDate } from '../utils/expiry';
 import { escapeHtml } from '../utils/escapeHtml';
 import { openPrintWindow } from '../utils/printWindow';
 
@@ -84,6 +85,16 @@ export default function POS() {
 
   // فتح نافذة الوزن أو الإضافة المباشرة حسب نوع وحدة المنتج
   const handleAddProduct = (product: Product) => {
+    // المنتج المنتهي مش ممنوع من البيع، بس الكاشير لازم يتأكد بنفسه —
+    // تاريخ اتكتب غلط ما يوقفش البيع.
+    const expiry = getExpiryInfo(product, storeSettings.expiryAlertDays);
+    if (expiry.status === 'expired') {
+      const ok = confirm(
+        `⚠️ تنبيه صلاحية\n\n"${product.name}" انتهت صلاحيته في ${formatExpiryDate(product.expiry_date)} (${expiryLabel(expiry)}).\n\nهل تريد إضافته للفاتورة؟`
+      );
+      if (!ok) return;
+    }
+
     if (isFractionalUnit(product.unit)) {
       setWeightProduct(product);
       setWeightUnitInput('');
@@ -1617,12 +1628,19 @@ export default function POS() {
               const isLowStock = product.stock_quantity > 0 && product.stock_quantity < 5;
               const avgPrice = product.average_purchase_price || product.purchase_price || 0;
               const lastPrice = product.purchase_price || 0;
+              const expiry = getExpiryInfo(product, storeSettings.expiryAlertDays);
 
               return (
                 <div
                   key={product.id}
                   onClick={() => !isOutOfStock && handleAddProduct(product)}
-                  className={`bg-white dark:bg-slate-800 p-4 rounded-3xl shadow-sm hover:shadow-xl cursor-pointer transition-all duration-300 transform hover:-translate-y-1 flex flex-col justify-between border border-gray-100 dark:border-slate-700 ring-1 ring-black/5 dark:ring-white/5 relative overflow-hidden group ${isOutOfStock ? 'opacity-60 cursor-not-allowed grayscale' : ''}`}
+                  className={`bg-white dark:bg-slate-800 p-4 rounded-3xl shadow-sm hover:shadow-xl cursor-pointer transition-all duration-300 transform hover:-translate-y-1 flex flex-col justify-between border ring-1 ring-black/5 dark:ring-white/5 relative overflow-hidden group ${isOutOfStock ? 'opacity-60 cursor-not-allowed grayscale' : ''} ${
+                    expiry.status === 'expired'
+                      ? 'border-red-300 dark:border-red-800'
+                      : expiry.status === 'soon'
+                        ? 'border-amber-300 dark:border-amber-800'
+                        : 'border-gray-100 dark:border-slate-700'
+                  }`}
                 >
                   <div className={`absolute top-0 right-0 rounded-bl-3xl rounded-tr-xl px-3 py-1 text-xs font-bold text-white shadow-sm transition-colors ${isOutOfStock ? 'bg-slate-500' : isLowStock ? 'bg-red-500' : 'bg-green-500 dark:bg-green-600'}`}>
                     {isOutOfStock ? 'نفذت' : formatQty(product.stock_quantity, product.unit)}
@@ -1630,6 +1648,21 @@ export default function POS() {
 
                   <div className="pt-2">
                     <h3 className="font-bold text-gray-800 dark:text-gray-100 line-clamp-2 leading-tight text-base">{product.name}</h3>
+
+                    {/* تنبيه الصلاحية — التاريخ نفسه بيتكتب عشان الكاشير يقدر يراجعه على العبوة */}
+                    {(expiry.status === 'soon' || expiry.status === 'expired') && (
+                      <div className={`mt-2 flex items-center gap-1.5 px-2 py-1 rounded-lg border text-[10px] font-black ${
+                        expiry.status === 'expired'
+                          ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-red-700 dark:text-red-400'
+                          : 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-400'
+                      }`}>
+                        <CalendarClock size={12} className="shrink-0" />
+                        <span className="whitespace-nowrap">{expiry.status === 'expired' ? 'منتهي' : 'ينتهي'}</span>
+                        <span dir="ltr" className="font-mono">{formatExpiryDate(product.expiry_date)}</span>
+                        <span className="opacity-70 whitespace-nowrap">({expiryLabel(expiry)})</span>
+                      </div>
+                    )}
+
                     {/* Purchase cost info for cashier */}
                     <div className="mt-2 space-y-0.5">
                       <div className="flex items-center gap-1.5 text-[11px]">

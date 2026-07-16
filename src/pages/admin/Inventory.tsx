@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { useStore, type Product } from '../../store/useStore';
-import { Plus, Edit2, EyeOff, Eye, Search, X, Tag, FileText, Table as TableIcon, Box, AlertTriangle, TrendingUp, ScanLine, CheckCircle2 } from 'lucide-react';
+import { Plus, Edit2, EyeOff, Eye, Search, X, Tag, FileText, Table as TableIcon, Box, AlertTriangle, TrendingUp, ScanLine, CheckCircle2, CalendarClock } from 'lucide-react';
 import { normalizeArabic } from '../../utils/textUtils';
 import { UNIT_OPTIONS, getUnitConfig, isFractionalUnit, formatQty } from '../../utils/units';
+import { getExpiryInfo, expiryLabel, formatExpiryDate } from '../../utils/expiry';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
@@ -13,6 +14,7 @@ export default function Inventory() {
   const [newCategoryName, setNewCategoryName] = useState('');
   const [showCatForm, setShowCatForm] = useState(false);
   const [showLowStock, setShowLowStock] = useState(false);
+  const [expiryFilter, setExpiryFilter] = useState<'all' | 'soon' | 'expired'>('all');
   const [showHidden, setShowHidden] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('all');
   
@@ -59,25 +61,39 @@ export default function Inventory() {
     sale_price: 0,
     stock_quantity: 0,
     category_id: categories[0]?.id || '',
-    unit: 'قطعة'
+    unit: 'قطعة',
+    production_date: '',
+    expiry_date: '',
+    expiry_alert_days: '' as string
   });
 
   const normalizedSearch = normalizeArabic(searchQuery);
   const searchTerms = normalizedSearch.split(' ').filter(t => t.trim() !== '');
 
+  const expiryStatusOf = (p: Product) => getExpiryInfo(p, storeSettings.expiryAlertDays).status;
+
   const filteredProducts = products.filter(p => {
     const normalizedName = normalizeArabic(p.name);
     const matchesSearch = searchTerms.length === 0 || searchTerms.every(term => normalizedName.includes(term)) || (p.barcode && p.barcode.includes(searchQuery));
     const matchesStock = showLowStock ? p.stock_quantity < 5 : true;
+    const matchesExpiry = expiryFilter === 'all' || expiryStatusOf(p) === expiryFilter;
     const matchesHidden = showHidden ? p.is_hidden === true : !p.is_hidden; // showHidden=true → المخفيين فقط
     const matchesCategory = selectedCategory === 'all' || p.category_id === selectedCategory;
-    return matchesSearch && matchesStock && matchesHidden && matchesCategory;
-  }).sort((a, b) => new Date((b as any).created_at || 0).getTime() - new Date((a as any).created_at || 0).getTime());
+    return matchesSearch && matchesStock && matchesExpiry && matchesHidden && matchesCategory;
+  }).sort((a, b) => {
+    // عند الفلترة بالصلاحية: الأقرب للانتهاء أولاً. غير كده: الأحدث إضافة أولاً.
+    if (expiryFilter !== 'all') {
+      return (a.expiry_date || '').localeCompare(b.expiry_date || '');
+    }
+    return new Date((b as any).created_at || 0).getTime() - new Date((a as any).created_at || 0).getTime();
+  });
   const hiddenCount = products.filter(p => p.is_hidden).length;
-  
+
   const totalStockValue = products.reduce((acc, p) => acc + (p.stock_quantity * (p.average_purchase_price || p.purchase_price || 0)), 0);
   const lowStockCount = products.filter(p => p.stock_quantity < 5).length;
   const totalItems = products.reduce((acc, p) => acc + p.stock_quantity, 0);
+  const expiringSoonCount = products.filter(p => expiryStatusOf(p) === 'soon').length;
+  const expiredCount = products.filter(p => expiryStatusOf(p) === 'expired').length;
 
   const handleToggleHide = (product: Product) => {
     const action = product.is_hidden ? 'إظهار' : 'إخفاء';
@@ -130,6 +146,20 @@ export default function Inventory() {
     }
   };
 
+  const emptyForm = () => ({
+    name: '',
+    barcode: '',
+    purchase_price: 0,
+    average_purchase_price: 0,
+    sale_price: 0,
+    stock_quantity: 0,
+    category_id: categories[0]?.id || '',
+    unit: 'قطعة',
+    production_date: '',
+    expiry_date: '',
+    expiry_alert_days: ''
+  });
+
   const openEditModal = (product: Product) => {
     setEditingProductId(product.id);
     setFormData({
@@ -140,23 +170,17 @@ export default function Inventory() {
       sale_price: product.sale_price,
       stock_quantity: product.stock_quantity,
       category_id: product.category_id,
-      unit: product.unit || 'قطعة'
+      unit: product.unit || 'قطعة',
+      production_date: product.production_date || '',
+      expiry_date: product.expiry_date || '',
+      expiry_alert_days: product.expiry_alert_days != null ? String(product.expiry_alert_days) : ''
     });
     setShowAddModal(true);
   };
 
   const openAddModal = () => {
     setEditingProductId(null);
-    setFormData({
-      name: '',
-      barcode: '',
-      purchase_price: 0,
-      average_purchase_price: 0,
-      sale_price: 0,
-      stock_quantity: 0,
-      category_id: categories[0]?.id || '',
-      unit: 'قطعة'
-    });
+    setFormData(emptyForm());
     setShowAddModal(true);
   };
 
@@ -172,25 +196,33 @@ export default function Inventory() {
       alert(`عذراً، هذا الباركود مسجل من قبل للمنتج: "${duplicate.name}". يرجى إدخال باركود فريد.`);
       return;
     }
-    
-    if (editingProductId) {
-      updateProduct(editingProductId, { ...formData });
-    } else {
-      addProduct({ ...formData });
+
+    if (formData.production_date && formData.expiry_date && formData.expiry_date < formData.production_date) {
+      alert('تاريخ انتهاء الصلاحية لا يمكن أن يكون قبل تاريخ الإنتاج.');
+      return;
     }
-    
+
+    // الحقول الفاضية بتتبعت null عشان المنتج يفضل "مالوش تاريخ" مش تاريخ فاضي،
+    // وأيام التنبيه الفاضية معناها "استخدم الافتراضي من الإعدادات".
+    // ولو مفيش تاريخ انتهاء أصلاً، أيام التنبيه بتتصفّر عشان ما تفضلش قيمة قديمة
+    // مخبّية تشتغل لوحدها لو المستخدم رجّع التاريخ بعدين.
+    const { production_date, expiry_date, expiry_alert_days, ...rest } = formData;
+    const payload = {
+      ...rest,
+      production_date: production_date || null,
+      expiry_date: expiry_date || null,
+      expiry_alert_days: !expiry_date || expiry_alert_days.trim() === '' ? null : Number(expiry_alert_days)
+    };
+
+    if (editingProductId) {
+      updateProduct(editingProductId, payload);
+    } else {
+      addProduct(payload);
+    }
+
     setShowAddModal(false);
     setEditingProductId(null);
-    setFormData({
-      name: '',
-      barcode: '',
-      purchase_price: 0,
-      average_purchase_price: 0,
-      sale_price: 0,
-      stock_quantity: 0,
-      category_id: categories[0]?.id || '',
-      unit: 'قطعة'
-    });
+    setFormData(emptyForm());
   };
 
   const exportExcel = () => {
@@ -198,17 +230,23 @@ export default function Inventory() {
       ['تقرير المخزون والمنتجات', '', '', '', '', ''],
       ['التاريخ', new Date().toLocaleDateString(), '', '', '', ''],
       [''],
-      ['الباركود', 'اسم المنتج', 'التصنيف', 'الوحدة', 'سعر الشراء', 'متوسط الشراء', 'سعر البيع', 'المخزون'],
-      ...filteredProducts.map(p => [
-        p.barcode,
-        p.name,
-        categories.find(c => c.id === p.category_id)?.name || '',
-        getUnitConfig(p.unit).label,
-        p.purchase_price,
-        p.average_purchase_price,
-        p.sale_price,
-        p.stock_quantity
-      ])
+      ['الباركود', 'اسم المنتج', 'التصنيف', 'الوحدة', 'سعر الشراء', 'متوسط الشراء', 'سعر البيع', 'المخزون', 'تاريخ الإنتاج', 'تاريخ الانتهاء', 'حالة الصلاحية'],
+      ...filteredProducts.map(p => {
+        const info = getExpiryInfo(p, storeSettings.expiryAlertDays);
+        return [
+          p.barcode,
+          p.name,
+          categories.find(c => c.id === p.category_id)?.name || '',
+          getUnitConfig(p.unit).label,
+          p.purchase_price,
+          p.average_purchase_price,
+          p.sale_price,
+          p.stock_quantity,
+          p.production_date || '',
+          p.expiry_date || '',
+          info.status === 'none' ? '' : expiryLabel(info)
+        ];
+      })
     ];
     const ws = XLSX.utils.aoa_to_sheet(wsData);
     const wb = XLSX.utils.book_new();
@@ -273,7 +311,7 @@ export default function Inventory() {
     <div className="p-4 md:p-8 relative">
       
       {/* STATS CARDS */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mb-8">
         <div className="bg-white rounded-[32px] p-6 shadow-sm border border-slate-100 flex items-center gap-6 group hover:border-indigo-200 transition-all">
           <div className="w-16 h-16 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600 group-hover:scale-110 transition-transform">
             <TrendingUp size={32} />
@@ -310,6 +348,24 @@ export default function Inventory() {
             <h3 className="text-2xl font-black text-slate-800">
               {lowStockCount} <span className="text-sm font-normal text-slate-400">منتج</span>
             </h3>
+          </div>
+        </div>
+
+        <div
+          onClick={() => setExpiryFilter(expiryFilter === 'soon' ? 'all' : 'soon')}
+          className={`bg-white rounded-[32px] p-6 shadow-sm border flex items-center gap-6 group hover:border-amber-200 transition-all cursor-pointer ${expiryFilter !== 'all' ? 'border-amber-500 bg-amber-50/20 ring-4 ring-amber-50' : 'border-slate-100'}`}
+        >
+          <div className="w-16 h-16 bg-amber-50 rounded-2xl flex items-center justify-center text-amber-600 group-hover:scale-110 transition-transform">
+            <CalendarClock size={32} />
+          </div>
+          <div>
+            <p className="text-slate-400 font-bold text-sm">أوشكت على الانتهاء</p>
+            <h3 className="text-2xl font-black text-slate-800">
+              {expiringSoonCount} <span className="text-sm font-normal text-slate-400">منتج</span>
+            </h3>
+            {expiredCount > 0 && (
+              <p className="text-xs font-bold text-red-500 mt-0.5">+ {expiredCount} منتهي الصلاحية</p>
+            )}
           </div>
         </div>
       </div>
@@ -401,6 +457,78 @@ export default function Inventory() {
                     ))}
                   </select>
                 </div>
+
+                {/* ─── الصلاحية (اختياري) ─────────────────────── */}
+                <div className="sm:col-span-2 pt-4 mt-2 border-t border-slate-100">
+                  <h3 className="text-sm font-black text-slate-700 flex items-center gap-2">
+                    <CalendarClock size={16} className="text-purple-500" />
+                    الصلاحية <span className="text-[10px] font-bold text-slate-400">(اختياري — سيبه فاضي لو المنتج مش بينتهي)</span>
+                  </h3>
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-slate-700 mb-1">تاريخ الإنتاج</label>
+                  <input
+                    type="date"
+                    value={formData.production_date}
+                    onChange={e => setFormData({...formData, production_date: e.target.value})}
+                    style={{ '--tw-ring-color': storeSettings.themeColor + '40' } as any}
+                    className="w-full bg-slate-50 border border-slate-200 py-3 px-4 rounded-xl focus:ring-2 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-slate-700 mb-1">تاريخ انتهاء الصلاحية</label>
+                  <input
+                    type="date"
+                    value={formData.expiry_date}
+                    min={formData.production_date || undefined}
+                    onChange={e => setFormData({...formData, expiry_date: e.target.value})}
+                    style={{ '--tw-ring-color': storeSettings.themeColor + '40' } as any}
+                    className="w-full bg-slate-50 border border-slate-200 py-3 px-4 rounded-xl focus:ring-2 focus:outline-none border-l-4 border-l-purple-500"
+                  />
+                </div>
+                <div className="sm:col-span-2">
+                  <label className="block text-sm font-bold text-slate-700 mb-1">التنبيه قبل الانتهاء بـ (أيام)</label>
+                  <input
+                    type="number" min="1" step="1"
+                    value={formData.expiry_alert_days}
+                    onChange={e => setFormData({...formData, expiry_alert_days: e.target.value})}
+                    disabled={!formData.expiry_date}
+                    style={{ '--tw-ring-color': storeSettings.themeColor + '40' } as any}
+                    className="w-full bg-slate-50 border border-slate-200 py-3 px-4 rounded-xl focus:ring-2 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
+                    placeholder={`الافتراضي: ${storeSettings.expiryAlertDays} يوم`}
+                  />
+                  <p className="text-xs text-slate-400 mt-1">
+                    {formData.expiry_date
+                      ? 'سيبه فاضي عشان يستخدم القيمة الافتراضية من صفحة الإعدادات.'
+                      : 'اختر تاريخ انتهاء الصلاحية أولاً لتفعيل هذا الحقل.'}
+                  </p>
+                </div>
+                {formData.expiry_date && (
+                  <div className="sm:col-span-2">
+                    {(() => {
+                      const info = getExpiryInfo(
+                        {
+                          expiry_date: formData.expiry_date,
+                          expiry_alert_days: formData.expiry_alert_days.trim() === '' ? null : Number(formData.expiry_alert_days)
+                        },
+                        storeSettings.expiryAlertDays
+                      );
+                      const tone = info.status === 'expired'
+                        ? 'bg-red-50 text-red-700 border-red-200'
+                        : info.status === 'soon'
+                          ? 'bg-amber-50 text-amber-700 border-amber-200'
+                          : 'bg-emerald-50 text-emerald-700 border-emerald-200';
+                      const text = info.status === 'expired'
+                        ? `⚠️ هذا المنتج منتهي الصلاحية بالفعل (${expiryLabel(info)}).`
+                        : info.status === 'soon'
+                          ? `⏳ سيظهر كـ «أوشك على الانتهاء» من الآن — ${expiryLabel(info)}.`
+                          : `✅ ${expiryLabel(info)} — سيبدأ التنبيه قبل الانتهاء بـ ${info.alertDays} يوم.`;
+                      return (
+                        <div className={`text-xs font-bold px-4 py-3 rounded-xl border ${tone}`}>{text}</div>
+                      );
+                    })()}
+                  </div>
+                )}
               </div>
               <div className="pt-4 mt-2 border-t">
                 <button type="submit" style={{ backgroundColor: storeSettings.themeColor }} className="w-full text-white py-4 rounded-xl font-bold transition shadow-lg shrink-0 flex items-center justify-center gap-2">
@@ -527,6 +655,30 @@ export default function Inventory() {
                 ))}
               </select>
             </div>
+            <div className="flex items-center rounded-xl border border-slate-200 bg-white p-1 shadow-sm">
+              {([
+                { key: 'all', label: 'كل الصلاحيات', count: null },
+                { key: 'soon', label: 'أوشك على الانتهاء', count: expiringSoonCount },
+                { key: 'expired', label: 'منتهي', count: expiredCount },
+              ] as const).map(opt => (
+                <button
+                  key={opt.key}
+                  onClick={() => setExpiryFilter(opt.key)}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-bold transition whitespace-nowrap ${
+                    expiryFilter === opt.key
+                      ? opt.key === 'expired'
+                        ? 'bg-red-500 text-white'
+                        : opt.key === 'soon'
+                          ? 'bg-amber-500 text-white'
+                          : 'bg-slate-800 text-white'
+                      : 'text-slate-500 hover:bg-slate-50'
+                  }`}
+                >
+                  {opt.label}
+                  {opt.count ? ` (${opt.count})` : ''}
+                </button>
+              ))}
+            </div>
             {hiddenCount > 0 && (
               <button
                 onClick={() => setShowHidden(!showHidden)}
@@ -558,6 +710,7 @@ export default function Inventory() {
                 <th className="p-4 text-center">متوسط الشراء</th>
                 <th className="p-4 text-center border-x border-slate-100 bg-slate-50">سعر البيع</th>
                 <th className="p-4 text-center border-l border-slate-100 bg-slate-50">المخزون المتوفر</th>
+                <th className="p-4 text-center">الصلاحية</th>
                 <th className="p-4 text-center">الإجراءات</th>
               </tr>
             </thead>
@@ -565,7 +718,8 @@ export default function Inventory() {
               {filteredProducts.map((product) => {
                 const category = categories.find(c => c.id === product.category_id)?.name;
                 const isLowStock = product.stock_quantity < 5;
-                
+                const expiry = getExpiryInfo(product, storeSettings.expiryAlertDays);
+
                 return (
                   <tr key={product.id} className={`hover:bg-slate-50 transition ${product.is_hidden ? 'opacity-50 bg-slate-50/80' : ''}`}>
                     <td className="p-4 font-mono text-slate-400">
@@ -598,6 +752,25 @@ export default function Inventory() {
                         {formatQty(product.stock_quantity, product.unit)}
                         <Edit2 size={14} className="opacity-100 md:opacity-0 md:group-hover:opacity-100" />
                       </button>
+                    </td>
+
+                    <td className="p-4 text-center">
+                      {expiry.status === 'none' ? (
+                        <span className="text-slate-300 text-xs font-bold">—</span>
+                      ) : (
+                        <div className="flex flex-col items-center gap-1">
+                          <span className="font-bold text-slate-600 text-xs" dir="ltr">{formatExpiryDate(product.expiry_date)}</span>
+                          <span className={`text-[10px] font-black px-2 py-0.5 rounded-full whitespace-nowrap ${
+                            expiry.status === 'expired'
+                              ? 'bg-red-100 text-red-700'
+                              : expiry.status === 'soon'
+                                ? 'bg-amber-100 text-amber-700'
+                                : 'bg-emerald-100 text-emerald-700'
+                          }`}>
+                            {expiryLabel(expiry)}
+                          </span>
+                        </div>
+                      )}
                     </td>
 
                     <td className="p-4">

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import type { Order, StoreSettings } from '../store/useStore';
+import { DEFAULT_EXPIRY_ALERT_DAYS } from '../utils/expiry';
 import { CheckCircle2, Printer, Download, Phone, User, MapPin } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import { calculateOrderReturnValue } from '../utils/returns';
@@ -39,7 +40,8 @@ export default function PublicInvoice() {
             phone2: s.phone2,
             whatsappCountryCode: s.whatsapp_country_code,
             initial_balance: s.initial_balance,
-            locationUrl: s.location_url
+            locationUrl: s.location_url,
+            expiryAlertDays: s.expiry_alert_days ?? DEFAULT_EXPIRY_ALERT_DAYS
           });
         }
 
